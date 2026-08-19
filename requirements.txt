@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+httpx
+beautifulsoup4
+lxml
+python-dotenv
+sqlalchemy
+asyncpg
+redis
+rq
+requests
+psycopg2-binary
