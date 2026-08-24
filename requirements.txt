@@ -10,3 +10,6 @@ redis
 rq
 requests
 psycopg2-binary
+loguru
+prometheus-client
+prometheus-fastapi-instrumentator
