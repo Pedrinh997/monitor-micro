@@ -5,9 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from . import models
 import os
 from .logger_config import logger
-from prometheus_client import Counter
-
-price_drop_counter = Counter('price_drops_total', 'Total de vezes que o preço baixou abaixo da meta')
+from .metrics import price_drop_counter
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:123456@db:5432/postgres")
 engine = create_engine(DATABASE_URL)

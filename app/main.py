@@ -5,12 +5,9 @@ from .database import get_db
 import redis
 from rq import Queue
 from prometheus_fastapi_instrumentator import Instrumentator
-from prometheus_client import Counter
 import time
 from .logger_config import logger
-
-# --- MÉTRICA PERSONALIZADA ---
-price_drop_counter = Counter('price_drops_total', 'Total de vezes que o preço baixou abaixo da meta')
+from .metrics import price_drop_counter
 
 # --- CONEXÕES ---
 redis_conn = redis.Redis(host="redis", port=6379, decode_responses=True)
