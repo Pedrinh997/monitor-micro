@@ -91,5 +91,3 @@ MIT
 
 Pedrinh997
 
-## 🚀 Live Demo (ngrok)
-Acesse a API pública: [https://directory-ungodly-tipoff.ngrok-free.dev/docs](https://directory-ungodly-tipoff.ngrok-free.dev/docs)
