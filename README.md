@@ -91,8 +91,5 @@ MIT
 
 Pedrinh997
 
-## 🎥 Demonstração
-Assista ao vídeo de demonstração do sistema rodando:  
-[Link para o vídeo no YouTube](https://youtu.be/SEU_LINK_AQUI)
 ## 🚀 Live Demo (ngrok)
 Acesse a API pública: [https://directory-ungodly-tipoff.ngrok-free.dev/docs](https://directory-ungodly-tipoff.ngrok-free.dev/docs)
