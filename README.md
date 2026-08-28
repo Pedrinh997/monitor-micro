@@ -1,3 +1,7 @@
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+![Python](https://img.shields.io/badge/python-3.14-blue)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
+
 # 📊 Monitor Micro – Scraping com Filas (Redis + RQ)
 
 Sistema de monitoramento de preços usando arquitetura de microsserviços com filas.
@@ -86,3 +90,9 @@ MIT
 ## 👤 Autor
 
 Pedrinh997
+
+## 🎥 Demonstração
+Assista ao vídeo de demonstração do sistema rodando:  
+[Link para o vídeo no YouTube](https://youtu.be/SEU_LINK_AQUI)
+## 🚀 Live Demo (ngrok)
+Acesse a API pública: [https://directory-ungodly-tipoff.ngrok-free.dev/docs](https://directory-ungodly-tipoff.ngrok-free.dev/docs)
