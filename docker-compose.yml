@@ -1,45 +1,31 @@
 services:
   db:
     image: postgres:15-alpine
-    container_name: micro_db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123456
       POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - micro_network
+    restart: always
 
   redis:
     image: redis:7-alpine
-    container_name: micro_redis
-    ports:
-      - "6379:6379"
-    networks:
-      - micro_network
+    restart: always
 
   api:
     build: .
-    container_name: micro_api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    ports:
-      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     depends_on:
       - db
       - redis
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:123456@db:5432/postgres
-    volumes:
-      - .:/app
-    networks:
-      - micro_network
+      REDIS_HOST: redis
+    restart: always
 
   worker:
     build: .
-    container_name: micro_worker
     command: python -m app.worker
     depends_on:
       - db
@@ -47,44 +33,16 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:123456@db:5432/postgres
       REDIS_URL: redis://redis:6379/0
-    volumes:
-      - .:/app
-    networks:
-      - micro_network
+    restart: always
 
-  # --- NOVO: PROMETHEUS (COLETOR DE MÉTRICAS) ---
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: micro_prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-    networks:
-      - micro_network
-
-  # --- NOVO: GRAFANA (VISUALIZAÇÃO DE DASHBOARDS) ---
-  grafana:
-    image: grafana/grafana:latest
-    container_name: micro_grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
+  frontend:
+    build: .
+    command: streamlit run app_ui.py --server.port 8501 --server.address 0.0.0.0
+    depends_on:
+      - api
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    networks:
-      - micro_network
+      API_URL: http://api:8000
+    restart: always
 
 volumes:
   postgres_data:
-  prometheus_data:
-  grafana_data:
-
-networks:
-  micro_network:
-    driver: bridge
