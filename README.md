@@ -91,3 +91,19 @@ MIT
 
 Pedrinh997
 
+
+## 🌐 Demonstração ao vivo (via ngrok)
+
+Para testar a API publicamente:
+
+1. Inicie a API e o ngrok:
+   ```bash
+   ./run_demo.sh
+   ```
+
+2. Obtenha o link público:
+   ```bash
+   curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+   ```
+
+3. Acesse o Swagger: `https://SEU_LINK.ngrok-free.app/docs`
