@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, EmailStr
 from datetime import datetime
 from typing import Optional
 
@@ -21,6 +21,7 @@ class ProductOut(BaseModel):
     title: Optional[str]
     target_price: Optional[float]
     created_at: datetime
+    owner_id: int
 
     class Config:
         from_attributes = True
@@ -31,3 +32,21 @@ class PriceHistoryOut(BaseModel):
     price: float
     currency: str
     scraped_at: datetime
+
+class UserCreate(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    email: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str

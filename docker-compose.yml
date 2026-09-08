@@ -5,44 +5,82 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123456
       POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: always
+    networks:
+      - monitor-net
 
   redis:
     image: redis:7-alpine
-    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - monitor-net
 
   api:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    depends_on:
-      - db
-      - redis
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:123456@db:5432/postgres
       REDIS_HOST: redis
-    restart: always
-
-  worker:
-    build: .
-    command: python -m app.worker
+      REDIS_PORT: 6379
+    ports:
+      - "8000:8000"
     depends_on:
       - db
       - redis
+    volumes:
+      - .:/app
+    networks:
+      - monitor-net
+
+  worker:
+    build: .
+    command: rq worker scraping --url redis://redis:6379
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:123456@db:5432/postgres
-      REDIS_URL: redis://redis:6379/0
-    restart: always
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    networks:
+      - monitor-net
 
   frontend:
     build: .
-    command: streamlit run app_ui.py --server.port 8501 --server.address 0.0.0.0
-    depends_on:
-      - api
+    command: streamlit run app_ui.py --server.address 0.0.0.0 --server.port 8501
+    ports:
+      - "8501:8501"
     environment:
       API_URL: http://api:8000
-    restart: always
+    depends_on:
+      - api
+    volumes:
+      - .:/app
+    networks:
+      - monitor-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitor-net
+
+networks:
+  monitor-net:
 
 volumes:
   postgres_data:
+  grafana_data:

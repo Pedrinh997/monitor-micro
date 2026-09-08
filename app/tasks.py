@@ -6,6 +6,7 @@ from . import models
 import os
 from .logger_config import logger
 from .metrics import price_drop_counter
+from .email_utils import send_price_alert
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:123456@db:5432/postgres")
 engine = create_engine(DATABASE_URL)
@@ -51,7 +52,11 @@ def process_scrape_task(product_id: int, url: str):
     try:
         data = scrape_product_sync(url)
         product = db.query(models.Product).filter(models.Product.id == product_id).first()
-        if product:
+        if not product:
+            logger.error(f"Produto {product_id} não encontrado")
+            return
+        
+        if not product.title:
             product.title = data["title"]
             db.commit()
             logger.info(f"Produto {product_id} título atualizado para '{data['title']}'")
@@ -64,12 +69,13 @@ def process_scrape_task(product_id: int, url: str):
         db.add(price_entry)
         db.commit()
         
-        # Verifica queda de preço
-        if product and product.target_price and data["price"] < product.target_price:
+        if product.target_price and data["price"] < product.target_price:
             price_drop_counter.inc()
             logger.warning(f"🔔 ALERTA: {product.title} caiu para R$ {data['price']} (abaixo de {product.target_price})")
-        else:
-            logger.info(f"Produto {product_id} atualizado: R$ {data['price']}")
+            
+            user = db.query(models.User).filter(models.User.id == product.owner_id).first()
+            if user and user.email:
+                send_price_alert(product.title, data["price"], product.target_price, user.email)
             
     except Exception as e:
         logger.error(f"❌ Erro no worker para produto {product_id}: {e}")

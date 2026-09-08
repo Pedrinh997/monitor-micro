@@ -10,3 +10,4 @@ Thumbs.db
 logs/
 *.bak
 *.save
+.env
