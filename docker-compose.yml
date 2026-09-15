@@ -21,18 +21,22 @@ services:
 
   api:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:123456@db:5432/postgres
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
     ports:
       - "8000:8000"
     depends_on:
       - db
       - redis
+      - minio
     volumes:
       - .:/app
     networks:
@@ -47,9 +51,13 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:123456@db:5432/postgres
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
     depends_on:
       - db
       - redis
+      - minio
     volumes:
       - .:/app
     networks:
@@ -78,9 +86,24 @@ services:
     networks:
       - monitor-net
 
+  minio:
+    image: quay.io/minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - monitor-net
+
 networks:
   monitor-net:
 
 volumes:
   postgres_data:
   grafana_data:
+  minio-data:

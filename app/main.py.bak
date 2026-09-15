@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 from prometheus_fastapi_instrumentator import Instrumentator
 from . import schemas, models, database, tasks, auth
-from .database import get_db_sync
+from .database import get_db
 from .logger_config import logger
 from .metrics import price_drop_counter
 from .routes import auth as auth_routes
@@ -49,7 +49,7 @@ async def root():
     return {"message": "Monitor Micro - API com filas"}
 
 @app.post("/scrape/")
-async def scrape_url(request: schemas.ScrapeRequest, db: Session = Depends(get_db_sync), current_user: models.User = Depends(auth.get_current_user)):
+async def scrape_url(request: schemas.ScrapeRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     start_time = time.time()
     logger.info(f"Recebida URL para scraping: {request.url}")
 
@@ -70,12 +70,12 @@ async def scrape_url(request: schemas.ScrapeRequest, db: Session = Depends(get_d
     }
 
 @app.get("/products/")
-async def list_products(db: Session = Depends(get_db_sync), current_user: models.User = Depends(auth.get_current_user)):
+async def list_products(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     logger.info("Listando produtos")
     return db.query(models.Product).filter(models.Product.owner_id == current_user.id).all()
 
 @app.get("/products/{product_id}/prices/")
-async def get_prices(product_id: int, db: Session = Depends(get_db_sync), current_user: models.User = Depends(auth.get_current_user)):
+async def get_prices(product_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     logger.info(f"Buscando histórico do produto {product_id}")
     product = db.query(models.Product).filter(models.Product.id == product_id, models.Product.owner_id == current_user.id).first()
     if not product:

@@ -1,5 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from sqlalchemy.orm import sessionmaker
+from .database import engine
 from . import models, tasks
 import os
 import logging
@@ -10,16 +12,16 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-from .database import SyncSessionLocal
+SessionLocal = sessionmaker(bind=engine)
 
 def upload_to_minio():
     """Coleta preços do banco e salva em Parquet no MinIO."""
     logger.info("📤 Iniciando upload para MinIO")
-    db = SyncSessionLocal()
+    db = SessionLocal()
     try:
         prices = db.query(models.PriceHistory).all()
         if not prices:
-            print("ℹ️ Nenhum preço para salvar.")
+            logger.info("Nenhum preço para salvar.")
             return
         data = [
             {
@@ -54,7 +56,7 @@ def upload_to_minio():
             Key=f"scrapes/{timestamp}.parquet",
             Body=buffer.getvalue(),
         )
-        print(f"✅ {len(data)} registros salvos no MinIO")
+        logger.info(f"✅ {len(data)} registros salvos no MinIO (price-history/scrapes/{timestamp}.parquet)")
     except Exception as e:
         logger.error(f"❌ Erro no upload para MinIO: {e}")
     finally:
@@ -63,7 +65,7 @@ def upload_to_minio():
 def scheduled_scrape_all():
     """Scraping agendado + upload para MinIO."""
     logger.info("🔄 Executando scraping agendado para todos os produtos")
-    db = SyncSessionLocal()
+    db = SessionLocal()
     try:
         products = db.query(models.Product).all()
         logger.info(f"🔎 {len(products)} produtos encontrados para scraping")

@@ -23,3 +23,7 @@ loguru
 psycopg2-binary
 loguru
 psycopg2-binary
+boto3
+pyarrow
+
+pwdlib[argon2]

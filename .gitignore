@@ -1,13 +1,31 @@
-venv/
+# Python
 __pycache__/
 *.pyc
-.env
-*.db
-*.sqlite3
-.DS_Store
-Thumbs.db
-.railway/
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+*.egg-info/
+
+# Docker
+*.log
+nohup.out
 logs/
-*.bak
-*.save
+
+# Environment
 .env
+.env.save.*
+
+# Dados locais
+*.sql
+backup_*.sql
+backups/
+dags/
+ngrok*.log
+log.txt
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
