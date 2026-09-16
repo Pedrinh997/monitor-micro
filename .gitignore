@@ -1,31 +1,71 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
-.Python
-venv/
-env/
 *.egg-info/
+.eggs/
+build/
+dist/
 
-# Docker
-*.log
-nohup.out
-logs/
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
 
-# Environment
+# Secrets
 .env
-.env.save.*
+.env.*
+!.env.example
 
-# Dados locais
-*.sql
-backup_*.sql
-backups/
-dags/
-ngrok*.log
-log.txt
+# Database / local data
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+pgdata/
+data/
 
-# IDEs
+# Logs
+*.log
+logs/
+*.pid
+
+# Docker local overrides
+docker-compose.override.yml
+
+# IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Temporary
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Runtime
+tmp/
+temp/
+uploads/
+exports/
