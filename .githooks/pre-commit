@@ -1,0 +1,11 @@
+#!/bin/sh
+PATTERNS='(^|/)(\.env$|\.env\.[^e].*$|.*\.log$|.*\.save$|.*\.bak$|.*\.pem$|.*\.key$|venv/|__pycache__/)'
+STAGED=$(git diff --cached --name-only)
+BAD=$(echo "$STAGED" | grep -E "$PATTERNS" || true)
+if [ -n "$BAD" ]; then
+  echo "❌ Commit bloqueado. Arquivos sensíveis:"
+  echo "$BAD"
+  echo "Use 'git commit --no-verify' para forçar."
+  exit 1
+fi
+exit 0
