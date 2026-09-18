@@ -84,7 +84,6 @@ def start_scheduler():
         trigger=IntervalTrigger(hours=6),
         id="scrape_all_products",
         replace_existing=True,
-        next_run_time=None,
     )
     # Job separado: só o upload para o MinIO (a cada 1 hora)
     scheduler.add_job(
@@ -92,7 +91,6 @@ def start_scheduler():
         trigger=IntervalTrigger(hours=1),
         id="upload_to_minio",
         replace_existing=True,
-        next_run_time=None,
     )
     scheduler.start()
     logger.info("⏰ Agendador iniciado: scraping a cada 6h + upload para MinIO a cada 1h")
