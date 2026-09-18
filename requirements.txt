@@ -27,3 +27,4 @@ boto3
 pyarrow
 
 pwdlib[argon2]
+duckdb
