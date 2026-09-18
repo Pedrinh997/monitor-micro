@@ -24,31 +24,48 @@ if 'sort_by' not in st.session_state:
 # --- LOGIN ---
 if not st.session_state['token']:
     st.sidebar.header("🔐 Autenticação")
+
     with st.sidebar.form("login_form"):
-        username = st.text_input("Usuário")
-        password = st.text_input("Senha", type="password")
-        col1, col2 = st.columns(2)
-        if col1.form_submit_button("Login"):
+        username = st.text_input("Usuário", key="login_user")
+        password = st.text_input("Senha", type="password", key="login_pass")
+        if st.form_submit_button("Login"):
             try:
-                resp = requests.post(f"{API_URL}/auth/token", data={"username": username, "password": password})
+                resp = requests.post(
+                    f"{API_URL}/auth/token",
+                    data={"username": username, "password": password},
+                    timeout=10,
+                )
                 if resp.status_code == 200:
                     st.session_state['token'] = resp.json()['access_token']
                     st.session_state['username'] = username
-                    st.success("Login realizado!")
                     st.rerun()
                 else:
-                    st.error("Credenciais inválidas")
-            except:
-                st.error("Erro ao conectar com a API")
-        if col2.form_submit_button("Cadastrar"):
-            try:
-                resp = requests.post(f"{API_URL}/auth/register", json={"username": username, "email": f"{username}@email.com", "password": password})
-                if resp.status_code == 200:
-                    st.success("Cadastrado! Faça login.")
+                    st.error(f"Credenciais inválidas (HTTP {resp.status_code})")
+            except Exception as e:
+                st.error(f"Erro ao conectar com a API: {e}")
+
+    with st.sidebar.expander("➕ Cadastrar novo usuário"):
+        with st.form("register_form"):
+            reg_user = st.text_input("Usuário", key="reg_user")
+            reg_pass = st.text_input("Senha", type="password", key="reg_pass")
+            reg_email = st.text_input("Email", key="reg_email")
+            if st.form_submit_button("Cadastrar"):
+                if not (reg_user and reg_pass and reg_email):
+                    st.error("Preencha todos os campos")
                 else:
-                    st.error("Erro no cadastro")
-            except:
-                st.error("Erro ao conectar com a API")
+                    try:
+                        r = requests.post(
+                            f"{API_URL}/auth/register",
+                            json={"username": reg_user, "email": reg_email, "password": reg_pass},
+                            timeout=10,
+                        )
+                        if r.status_code == 200:
+                            st.success("Cadastrado! Faça login.")
+                        else:
+                            st.error(f"Erro no cadastro: {r.text}")
+                    except Exception as e:
+                        st.error(f"Erro: {e}")
+
     st.stop()
 
 # --- SIDEBAR (logado) ---
