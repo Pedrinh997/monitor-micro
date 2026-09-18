@@ -11,6 +11,7 @@ from .logger_config import logger
 from .metrics import price_drop_counter
 from .routes import auth as auth_routes
 from .scheduler import start_scheduler
+from .analytics.duckdb_analysis import get_price_stats, get_price_variation
 
 # --- CONEXÕES ---
 redis_conn = redis.Redis(host=os.getenv("REDIS_HOST", "redis"), port=int(os.getenv("REDIS_PORT", 6379)), decode_responses=True)
@@ -81,3 +82,19 @@ async def get_prices(product_id: int, db: Session = Depends(get_db_sync), curren
     if not product:
         raise HTTPException(404, "Product not found")
     return db.query(models.PriceHistory).filter(models.PriceHistory.product_id == product_id).all()
+
+
+# ─── ANALYTICS (DuckDB + MinIO) ─────────────────────────────
+
+@app.get("/analytics/stats")
+async def analytics_stats(product_id: int | None = None, current_user: models.User = Depends(auth.get_current_user)):
+    """Estatísticas de preço (média/min/máx/contagem) via DuckDB."""
+    logger.info(f"Analytics stats | product_id={product_id}")
+    return get_price_stats(product_id=product_id)
+
+
+@app.get("/analytics/variation/{product_id}")
+async def analytics_variation(product_id: int, current_user: models.User = Depends(auth.get_current_user)):
+    """Variação absoluta e percentual entre os 2 últimos preços."""
+    logger.info(f"Analytics variation | product_id={product_id}")
+    return get_price_variation(product_id=product_id)
