@@ -1,10 +1,11 @@
+import os
 import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-API_URL = "http://localhost:8001"
+API_URL = os.getenv("API_URL", "http://api:8000")
 
 st.set_page_config(page_title="Monitor Micro", layout="wide")
 st.title("📊 Monitor Micro - Frontend")
@@ -79,6 +80,30 @@ with st.sidebar:
         st.rerun()
 
 # --- MAIN ---
+# --- ANALYTICS (DuckDB + MinIO) ---
+st.subheader("📊 Analytics (DuckDB + MinIO)")
+
+_analytics_headers = {"Authorization": f"Bearer {st.session_state['token']}"}
+try:
+    r_stats = requests.get(f"{API_URL}/analytics/stats", headers=_analytics_headers, timeout=10)
+    if r_stats.status_code == 200:
+        stats = r_stats.json()
+        if stats.get("count", 0) > 0:
+            a, b, c, d = st.columns(4)
+            cur = stats.get("currency", "")
+            a.metric("Amostras", stats.get("count"))
+            b.metric("Preço Médio", f"{stats.get('avg_price', 0):.2f} {cur}")
+            c.metric("Mínimo",     f"{stats.get('min_price', 0):.2f} {cur}")
+            d.metric("Máximo",     f"{stats.get('max_price', 0):.2f} {cur}")
+        else:
+            st.info("Sem amostras no data lake ainda.")
+    else:
+        st.warning(f"Analytics indisponível (HTTP {r_stats.status_code})")
+except Exception as e:
+    st.warning(f"Erro ao consultar analytics: {e}")
+
+st.divider()
+
 st.subheader("📋 Produtos Monitorados")
 
 headers = {"Authorization": f"Bearer {st.session_state['token']}"}
