@@ -24,3 +24,4 @@ pyarrow
 
 pwdlib[argon2]
 duckdb
+statsmodels
