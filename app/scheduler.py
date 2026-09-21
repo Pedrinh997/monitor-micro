@@ -1,4 +1,5 @@
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.triggers.interval import IntervalTrigger
 from . import models, tasks
 import os
@@ -10,7 +11,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-from .database import SyncSessionLocal
+from .database import SyncSessionLocal, SYNC_DATABASE_URL
 
 def upload_to_minio():
     """Coleta preços do banco e salva em Parquet no MinIO."""
@@ -78,20 +79,38 @@ def scheduled_scrape_all():
     upload_to_minio()
 
 def start_scheduler():
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        scheduled_scrape_all,
-        trigger=IntervalTrigger(hours=6),
-        id="scrape_all_products",
-        replace_existing=True,
-    )
-    # Job separado: só o upload para o MinIO (a cada 1 hora)
-    scheduler.add_job(
-        upload_to_minio,
-        trigger=IntervalTrigger(hours=1),
-        id="upload_to_minio",
-        replace_existing=True,
-    )
-    scheduler.start()
-    logger.info("⏰ Agendador iniciado: scraping a cada 6h + upload para MinIO a cada 1h")
+    jobstores = {
+        "default": SQLAlchemyJobStore(url=SYNC_DATABASE_URL)
+    }
+    job_defaults = {
+        "coalesce": True,              # se perdeu vários ticks, roda só 1 vez
+        "max_instances": 1,
+        "misfire_grace_time": 86400,   # 24h: roda job atrasado ao subir a API
+    }
+    scheduler = BackgroundScheduler(jobstores=jobstores, job_defaults=job_defaults)
+    scheduler.start()  # carrega jobs existentes do jobstore
+
+    existing = {j.id for j in scheduler.get_jobs()}
+
+    if "scrape_all_products" not in existing:
+        scheduler.add_job(
+            scheduled_scrape_all,
+            trigger=IntervalTrigger(hours=6),
+            id="scrape_all_products",
+        )
+        logger.info("  + job scrape_all_products adicionado")
+    else:
+        logger.info("  = job scrape_all_products já existia (preservado)")
+
+    if "upload_to_minio" not in existing:
+        scheduler.add_job(
+            upload_to_minio,
+            trigger=IntervalTrigger(hours=1),
+            id="upload_to_minio",
+        )
+        logger.info("  + job upload_to_minio adicionado")
+    else:
+        logger.info("  = job upload_to_minio já existia (preservado)")
+
+    logger.info("⏰ Agendador iniciado (jobstore Postgres persistente)")
     return scheduler

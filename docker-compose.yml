@@ -1,5 +1,6 @@
 services:
   db:
+    restart: always
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: postgres
@@ -13,6 +14,7 @@ services:
       - monitor-net
 
   redis:
+    restart: always
     image: redis:7-alpine
     ports:
       - "6379:6379"
@@ -20,6 +22,7 @@ services:
       - monitor-net
 
   api:
+    restart: always
     build: .
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     env_file:
@@ -43,6 +46,7 @@ services:
       - monitor-net
 
   worker:
+    restart: always
     build: .
     command: rq worker scraping --url redis://redis:6379
     env_file:
@@ -64,6 +68,7 @@ services:
       - monitor-net
 
   frontend:
+    restart: always
     build: .
     command: streamlit run app_ui.py --server.address 0.0.0.0 --server.port 8501
     ports:
@@ -78,6 +83,7 @@ services:
       - monitor-net
 
   grafana:
+    restart: always
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
@@ -87,6 +93,7 @@ services:
       - monitor-net
 
   minio:
+    restart: always
     image: quay.io/minio/minio:latest
     ports:
       - "9000:9000"
