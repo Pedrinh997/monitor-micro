@@ -174,6 +174,48 @@ try:
 except Exception as e:
     st.error(f"API não está rodando.")
 
+# --- PREVISÃO (ML) ---
+if st.session_state['selected']:
+    pid = st.session_state['selected']
+    st.divider()
+    st.subheader(f"🔮 Previsão — Próximos 7 dias (Produto {pid})")
+
+    try:
+        r_fc = requests.get(
+            f"{API_URL}/products/{pid}/forecast",
+            headers=headers,
+            timeout=10,
+        )
+        if r_fc.status_code == 200:
+            fc = r_fc.json()
+            if fc.get("error"):
+                st.info(fc["error"])
+            else:
+                preds = pd.DataFrame(fc["predictions"])
+                preds["date"] = pd.to_datetime(preds["date"])
+
+                fig_fc = px.line(
+                    preds,
+                    x="date",
+                    y="predicted_price",
+                    markers=True,
+                    title=f"Modelo: {fc.get('model', '?')}",
+                )
+                fig_fc.update_layout(
+                    yaxis_title="Preço previsto",
+                    xaxis_title="Data",
+                )
+                st.plotly_chart(fig_fc, use_container_width=True)
+
+                st.caption(
+                    f"Último preço conhecido: {fc.get('last_known_price')} "
+                    f"em {fc.get('last_known_at', '')[:10]}"
+                )
+        else:
+            st.warning(f"Forecast indisponível (HTTP {r_fc.status_code})")
+    except Exception as e:
+        st.warning(f"Erro ao consultar forecast: {e}")
+
 # --- HISTÓRICO E GRÁFICO ---
 if st.session_state['selected']:
     pid = st.session_state['selected']
