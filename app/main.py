@@ -12,6 +12,7 @@ from .metrics import price_drop_counter
 from .routes import auth as auth_routes
 from .scheduler import start_scheduler
 from .analytics.duckdb_analysis import get_price_stats, get_price_variation
+from .ml.forecast import predict_prices
 
 # --- CONEXÕES ---
 redis_conn = redis.Redis(host=os.getenv("REDIS_HOST", "redis"), port=int(os.getenv("REDIS_PORT", 6379)), decode_responses=True)
@@ -113,3 +114,16 @@ async def analytics_variation(product_id: int, current_user: models.User = Depen
     """Variação absoluta e percentual entre os 2 últimos preços."""
     logger.info(f"Analytics variation | product_id={product_id}")
     return get_price_variation(product_id=product_id)
+
+
+# ─── ML FORECAST ─────────────────────────────────────────────
+
+@app.get("/products/{product_id}/forecast")
+async def product_forecast(
+    product_id: int,
+    days: int = 7,
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Previsão de preços dos próximos N dias (default: 7)."""
+    logger.info(f"Forecast | product_id={product_id} days={days}")
+    return predict_prices(product_id=product_id, days=days)
