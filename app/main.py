@@ -52,23 +52,38 @@ async def root():
 @app.post("/scrape/")
 async def scrape_url(request: schemas.ScrapeRequest, db: Session = Depends(get_db_sync), current_user: models.User = Depends(auth.get_current_user)):
     start_time = time.time()
-    logger.info(f"Recebida URL para scraping: {request.url}")
+    url = str(request.url)
+    logger.info(f"Recebida URL para scraping: {url}")
 
-    new_product = models.Product(url=str(request.url), owner_id=current_user.id)
-    db.add(new_product)
-    db.commit()
-    db.refresh(new_product)
+    existing = db.query(models.Product).filter(models.Product.url == url).first()
 
-    job = queue.enqueue(tasks.process_scrape_task, new_product.id, str(request.url))
+    if existing is not None:
+        if existing.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=409,
+                detail="Esta URL já está sendo monitorada por outro usuário.",
+            )
+        product = existing
+        logger.info(f"Reutilizando produto existente id={product.id}")
+    else:
+        product = models.Product(url=url, owner_id=current_user.id)
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+        logger.info(f"Produto criado id={product.id}")
+
+    job = queue.enqueue(tasks.process_scrape_task, product.id, url)
 
     duration = time.time() - start_time
-    logger.info(f"Tarefa enfileirada para produto {new_product.id} | job_id: {job.id} | duracao: {duration:.2f}s")
+    logger.info(f"Tarefa enfileirada para produto {product.id} | job_id: {job.id} | duracao: {duration:.2f}s")
 
     return {
-        "message": "Produto criado. Scraping em andamento.",
-        "product_id": new_product.id,
-        "job_id": job.id
+        "message": "Scraping em andamento.",
+        "product_id": product.id,
+        "job_id": job.id,
+        "reused": existing is not None,
     }
+
 
 @app.get("/products/")
 async def list_products(db: Session = Depends(get_db_sync), current_user: models.User = Depends(auth.get_current_user)):
