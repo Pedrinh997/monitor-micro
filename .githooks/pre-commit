@@ -1,7 +1,13 @@
 #!/bin/sh
+# Bloqueia arquivos sensíveis em A (added), M (modified), R (renamed), C (copied).
+# Permite D (deleted) — remover do tracking é seguro.
 PATTERNS='(^|/)(\.env$|\.env\.[^e].*$|.*\.log$|.*\.save$|.*\.bak$|.*\.pem$|.*\.key$|venv/|__pycache__/)'
-STAGED=$(git diff --cached --name-only)
-BAD=$(echo "$STAGED" | grep -E "$PATTERNS" || true)
+
+BAD=$(git diff --cached --name-status \
+  | grep -E '^[AMRC]' \
+  | grep -E "$PATTERNS" \
+  | awk '{print $2}')
+
 if [ -n "$BAD" ]; then
   echo "❌ Commit bloqueado. Arquivos sensíveis:"
   echo "$BAD"
