@@ -76,6 +76,18 @@ Resposta esperada: `{"message":"Monitor Micro - API com filas"}`
 | Grafana | http://localhost:3000 (admin/admin) |
 | MinIO Console | http://localhost:9001 (minioadmin/minioadmin) |
 
+## 🌐 Live demo
+
+- **Dashboard (Streamlit):** https://directory-ungodly-tipoff.ngrok-free.dev — URL fixa
+- **API (Swagger):** rode `~/tunnel.sh url` no host para pegar a URL atual
+- **Grafana:** idem
+
+**Nota:** só o Streamlit tem URL fixa (ngrok free). API e Grafana usam
+cloudflared `trycloudflare.com`, que gera URL nova a cada reinício.
+Gerencie todos com:
+
+    ~/tunnel.sh {start|stop|url|status|restart}
+
 ## 🔌 Endpoints da API
 
 | Método | Rota | Descrição |
