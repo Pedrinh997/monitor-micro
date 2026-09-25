@@ -183,7 +183,7 @@ try:
 
                 with st.container(border=True):
                     col1, col2, col3, col4, col5 = st.columns([4, 1, 1, 1, 1])
-                    col1.write(f"**{p.get('title', 'Sem título')}**")
+                    col1.write(f"**{p.get('title') or 'Sem título'}**")
                     col2.write(f"ID: {p['id']}")
                     col3.write(f"💷 {last_price:.2f}" if last_price else "💷 —")
                     col4.write(f"📅 {last_date}" if last_date else "")
