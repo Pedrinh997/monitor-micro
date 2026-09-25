@@ -1,4 +1,5 @@
 import os
+import io
 import streamlit as st
 import requests
 import pandas as pd
@@ -162,12 +163,31 @@ try:
                 products.sort(key=lambda x: x.get('title', '').lower())
 
             for p in products:
+                # Busca último preço (última amostra)
+                last_price = None
+                last_date = None
+                try:
+                    r_p = requests.get(
+                        f"{API_URL}/products/{p['id']}/prices/",
+                        headers=headers,
+                        timeout=5,
+                    )
+                    if r_p.status_code == 200:
+                        prices = r_p.json()
+                        if prices:
+                            last = prices[-1]
+                            last_price = last.get('price')
+                            last_date = (last.get('scraped_at') or '')[:10]
+                except Exception:
+                    pass
+
                 with st.container(border=True):
-                    col1, col2, col3, col4 = st.columns([4, 1, 1, 1])
+                    col1, col2, col3, col4, col5 = st.columns([4, 1, 1, 1, 1])
                     col1.write(f"**{p.get('title', 'Sem título')}**")
                     col2.write(f"ID: {p['id']}")
-                    col3.write(f"Alvo: R$ {p.get('target_price', 0):.2f}" if p.get('target_price') else "")
-                    if col4.button(f"📈 Histórico", key=f"hist_{p['id']}"):
+                    col3.write(f"💷 {last_price:.2f}" if last_price else "💷 —")
+                    col4.write(f"📅 {last_date}" if last_date else "")
+                    if col5.button(f"📈 Ver", key=f"hist_{p['id']}"):
                         st.session_state['selected'] = p['id']
     else:
         st.error("Erro ao buscar produtos.")
@@ -231,8 +251,18 @@ if st.session_state['selected']:
                 df["scraped_at"] = pd.to_datetime(df["scraped_at"])
                 
                 fig = px.line(df, x="scraped_at", y="price", markers=True, title="Evolução do Preço")
-                fig.update_layout(yaxis_title="Preço (R$)", xaxis_title="Data")
+                fig.update_layout(yaxis_title="Preço", xaxis_title="Data")
                 st.plotly_chart(fig, use_container_width=True)
+
+                # Export CSV
+                csv = df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="⬇️ Exportar CSV",
+                    data=csv,
+                    file_name=f"historico_produto_{pid}.csv",
+                    mime="text/csv",
+                    key=f"csv_{pid}",
+                )
                 
                 st.write("Últimas medições:")
                 st.dataframe(df.tail(5)[["scraped_at", "price"]].sort_values("scraped_at", ascending=False))
