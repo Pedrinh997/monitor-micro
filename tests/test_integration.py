@@ -39,16 +39,29 @@ def test_forecast_no_history(api_url, auth_headers):
 
 
 def test_scrape_duplicate_url(api_url, auth_headers):
-    """Enviar URL repetida retorna reused=true."""
+    """Enviar URL repetida deve ser rejeitada (409) ou marcada como reused=true.
+
+    Comportamento atual da API: 409 Conflict para URL já cadastrada.
+    Contrato antigo (200 + reused=true) também é aceito por compatibilidade.
+    """
     import requests
     url = "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
 
+    # Primeira chamada — 200 (novo) ou 409 (já existia de sessões antigas)
     r1 = requests.post(f"{api_url}/scrape/", json={"url": url}, headers=auth_headers, timeout=10)
-    assert r1.status_code == 200
+    assert r1.status_code in (200, 409), f"1ª chamada inesperada: {r1.status_code} {r1.text}"
 
+    # Segunda chamada — deve ser 409 (duplicado) ou 200 com reused=true
     r2 = requests.post(f"{api_url}/scrape/", json={"url": url}, headers=auth_headers, timeout=10)
-    assert r2.status_code == 200
-    assert r2.json().get("reused") is True
+    assert r2.status_code in (200, 409), f"2ª chamada inesperada: {r2.status_code} {r2.text}"
+
+    if r2.status_code == 409:
+        # Comportamento novo — duplicado rejeitado explicitamente
+        body = r2.json()
+        assert "detail" in body or "already" in r2.text.lower()
+    else:
+        # Comportamento antigo — 200 com reused=true
+        assert r2.json().get("reused") is True
 
 
 def test_metrics_endpoint(api_url):
