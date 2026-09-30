@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 class ScrapeRequest(BaseModel):
-    url: HttpUrl
+    url: str
 
 class ScrapeResponse(BaseModel):
     title: str

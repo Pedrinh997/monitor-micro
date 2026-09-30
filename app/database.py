@@ -13,7 +13,7 @@ engine = create_async_engine(DATABASE_URL, echo=True)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 # Engine e sessão síncronas (para tarefas em background, como o scheduler)
-SYNC_DATABASE_URL = DATABASE_URL.replace("+asyncpg", "")  # ex: postgresql://...
+SYNC_DATABASE_URL = DATABASE_URL.replace("+asyncpg", "+psycopg2")  # ex: postgresql://...
 sync_engine = create_engine(SYNC_DATABASE_URL)
 SyncSessionLocal = sessionmaker(bind=sync_engine)
 

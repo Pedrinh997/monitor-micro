@@ -25,3 +25,4 @@ pyarrow
 pwdlib[argon2]
 duckdb
 statsmodels
+greenlet>=3.0.0
