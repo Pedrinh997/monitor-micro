@@ -79,7 +79,7 @@ with st.sidebar:
     
     st.divider()
     st.header("🔗 Adicionar Produto")
-    url = st.text_input("URL do Mercado Livre")
+    url = st.text_input("ID da moeda (ex: bitcoin, ethereum)")
     target_price = st.number_input("Preço Alvo (R$)", min_value=0.0, step=1.0)
     if st.button("🚀 Monitorar"):
         if url:
@@ -185,7 +185,7 @@ try:
                     col1, col2, col3, col4, col5 = st.columns([4, 1, 1, 1, 1])
                     col1.write(f"**{p.get('title') or 'Sem título'}**")
                     col2.write(f"ID: {p['id']}")
-                    col3.write(f"💷 {last_price:.2f}" if last_price else "💷 —")
+                    col3.write(f"$ {last_price:.2f}" if last_price else "$ —")
                     col4.write(f"📅 {last_date}" if last_date else "")
                     if col5.button(f"📈 Ver", key=f"hist_{p['id']}"):
                         st.session_state['selected'] = p['id']

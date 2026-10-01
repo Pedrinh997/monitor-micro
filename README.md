@@ -1,224 +1,145 @@
 # 📊 Monitor Micro
 
-Sistema de monitoramento de preços com arquitetura de microserviços.
-Scraping → persistência → data lake → analytics → previsão ML → dashboard.
+Sistema de monitoramento de preços de criptomoedas com arquitetura de microserviços.
+Coleta via API REST → persistência → data lake → analytics → previsão ML → dashboard.
 
 ## 🎯 O que faz
 
 - Cadastro e autenticação de usuários (JWT)
-- Cadastro de produtos por URL (scraping via `books.toscrape.com`)
-- Worker assíncrono (RQ) que extrai título e preço
+- Cadastro de moedas por ID da CoinGecko (`bitcoin`, `ethereum`, ...)
+- Worker assíncrono (RQ) que puxa 30 dias de histórico em série temporal
 - Histórico completo de preços no PostgreSQL
-- Exportação automática para Parquet no MinIO (data lake)
+- Exportação **incremental** para Parquet no MinIO (data lake)
 - Scheduler persistente (APScheduler + jobstore no Postgres)
 - Analytics com DuckDB lendo os Parquets direto do MinIO
-- Previsão de preços: baseline agora, ARIMA automático em >= 10 amostras
-- Dashboard Streamlit com histórico + previsão
-- Observabilidade: Prometheus (métricas) + Grafana (dashboards provisionados)
+- Previsão de preços: ARIMA (após agregação diária), com fallback baseline
+- Dashboard Streamlit com histórico + previsão + export CSV
+- Alertas de email quando o preço cai abaixo do alvo (Mailpit em dev, SMTP em prod)
+- Observabilidade: Prometheus (métricas) + Grafana (dashboards)
 
 ## 🏗️ Arquitetura
 
-    [Frontend Streamlit] ←→ [API FastAPI] ←→ [PostgreSQL]
-                                  ↓
-                          [Redis + Worker RQ]
-                                  ↓
-                       [Scraper books.toscrape]
-                                  ↓
-                       [MinIO (Parquet data lake)]
-                                  ↓
-                       [DuckDB (analytics/ML)]
-                                  ↓
-                     [Prometheus] → [Grafana]
+    [Streamlit] ←→ [FastAPI] ←→ [PostgreSQL]
+                       ↓
+              [Redis + Worker RQ]
+                       ↓
+              [CoinGecko API REST]
+                       ↓
+              [MinIO (Parquet data lake)]
+                       ↓
+              [DuckDB (analytics/ML)]
+                       ↓
+              [Prometheus] → [Grafana]
+                       ↓
+              [Mailpit (dev) / SMTP (prod)]
 
 ## 🚀 Stack
 
 - **API:** FastAPI (async) + Uvicorn
 - **Fila:** Redis + RQ
-- **DB:** PostgreSQL 15 + SQLAlchemy (async + sync)
-- **Data lake:** MinIO (S3-compatible)
-- **Analytics:** DuckDB (lê Parquets)
+- **DB:** PostgreSQL 15 + SQLAlchemy (async + sync via psycopg2)
+- **Data lake:** MinIO (S3-compatible), imagem `coollabsio/minio`
+- **Analytics:** DuckDB (lê Parquets do MinIO)
 - **ML:** pandas + statsmodels (ARIMA) com fallback baseline
-- **Scheduler:** APScheduler + SQLAlchemyJobStore
+- **Scheduler:** APScheduler com jobstore no Postgres
 - **Frontend:** Streamlit + Plotly
-- **Observabilidade:** Prometheus + Grafana (provisionado via arquivos)
-- **Container:** Docker + Docker Compose
-- **Testes:** Pytest
+- **Email (dev):** Mailpit (SMTP local sem auth)
+- **Observabilidade:** Prometheus + Grafana
 
-## 📋 Pré-requisitos
+## 🔌 Fonte de dados
 
-- Docker + Docker Compose
-- (Opcional) `jq` para inspecionar JSON no terminal
+**CoinGecko API pública** — sem auth, sem cartão:
+- `/coins/{id}` → metadata (nome, símbolo)
+- `/coins/{id}/market_chart?days=30&interval=daily` → 30 amostras de preço
+- Retry exponencial em 429 (rate limit keyless ~30 req/min)
 
-## 🏃 Como rodar
+## 🚀 Como rodar
 
-Todo o stack em um comando:
+### Subir a stack
 
-    docker compose up -d
+    sudo -v
+    sudo setsid nohup dockerd > /tmp/docker.log 2>&1 < /dev/null &
+    disown
+    sleep 15
+    sudo docker compose up -d
 
-Aguarde ~30s (Postgres + initdb). Depois rode uma vez:
+### Popular com moedas
 
-    docker exec monitor_micro-api-1 python create_tables.py
-
-Verifique:
-
-    curl http://127.0.0.1:8000/
-
-Resposta esperada: `{"message":"Monitor Micro - API com filas"}`
-
-### Acessos
-
-| Serviço | URL |
-|---|---|
-| API | http://localhost:8000 |
-| Swagger | http://localhost:8000/docs |
-| Frontend | http://localhost:8501 |
-| Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 (admin/admin) |
-| MinIO Console | http://localhost:9001 (minioadmin/minioadmin) |
-
-## 🌐 Live demo
-
-- **Dashboard (Streamlit):** https://directory-ungodly-tipoff.ngrok-free.dev — URL fixa
-- **API (Swagger):** rode `~/tunnel.sh url` no host para pegar a URL atual
-- **Grafana:** idem
-
-**Nota:** só o Streamlit tem URL fixa (ngrok free). API e Grafana usam
-cloudflared `trycloudflare.com`, que gera URL nova a cada reinício.
-Gerencie todos com:
-
-    ~/tunnel.sh {start|stop|url|status|restart}
-
-## 🔌 Endpoints da API
-
-| Método | Rota | Descrição |
-|---|---|---|
-| POST | `/auth/register` | Cadastrar usuário |
-| POST | `/auth/token` | Obter JWT |
-| POST | `/scrape/` | Enfileirar scraping de uma URL |
-| GET | `/products/` | Listar produtos do usuário |
-| GET | `/products/{id}/prices/` | Histórico de preços |
-| GET | `/products/{id}/forecast?days=7` | Previsão (baseline / ARIMA) |
-| GET | `/analytics/stats?product_id=` | Média/min/máx via DuckDB |
-| GET | `/analytics/variation/{id}` | Variação % entre 2 últimas amostras |
-| GET | `/metrics` | Métricas Prometheus |
-
-Todas as rotas exceto `auth/*` e `/` exigem `Authorization: Bearer <token>`.
-
-## 📁 Estrutura do projeto
-
-    monitor_micro/
-    ├── app/
-    │   ├── main.py               FastAPI app + endpoints
-    │   ├── database.py           SQLAlchemy async + sync engines
-    │   ├── models.py             ORM (User, Product, PriceHistory)
-    │   ├── schemas.py            Pydantic schemas
-    │   ├── auth.py               JWT + password hashing
-    │   ├── routes/auth.py        Rotas de autenticação
-    │   ├── tasks.py              RQ task: scrape + salvar
-    │   ├── worker.py             Entrypoint do worker
-    │   ├── scheduler.py          APScheduler (upload 1h / scrape 6h)
-    │   ├── metrics.py            Contadores Prometheus
-    │   ├── logger_config.py      Loguru
-    │   ├── email_utils.py        Alertas por e-mail
-    │   ├── telegram_utils.py     Alertas via Telegram
-    │   ├── analytics/
-    │   │   └── duckdb_analysis.py  Stats + variação via DuckDB
-    │   └── ml/
-    │       └── forecast.py       Baseline + ARIMA (auto-switch)
-    ├── grafana/provisioning/     Datasource + dashboards
-    ├── prometheus/               prometheus.yml
-    ├── tests/                    Pytest
-    ├── docker-compose.yml        8 serviços
-    ├── Dockerfile
-    ├── requirements.txt
-    ├── create_tables.py          Cria schema no Postgres
-    ├── app_ui.py                 Streamlit frontend
-    ├── RUNBOOK.md                Comandos do dia-a-dia
-    ├── BOOT.md                   Como subir após desligar o PC
-    └── DEPLOY_VPS.md             Roteiro completo para VPS
-
-## 🧪 Testando manualmente
-
-### 1. Registrar usuário
-
-    curl -X POST http://127.0.0.1:8000/auth/register \
-      -H "Content-Type: application/json" \
-      -d '{"username":"teste","email":"teste@teste.com","password":"123456"}'
-
-### 2. Obter token
-
+    # Login
     TOKEN=$(curl -sS -X POST http://127.0.0.1:8000/auth/token \
       -H "Content-Type: application/x-www-form-urlencoded" \
       -d "username=teste&password=123456" | jq -r .access_token)
 
-### 3. Cadastrar produto
+    # Enviar 5 moedas por lote, esperar worker drenar (30s-3min cada)
+    for coin in bitcoin ethereum solana cardano dogecoin; do
+      curl -sS -X POST http://127.0.0.1:8000/scrape/ \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\":\"$coin\"}" | jq -c '{product_id, reused}'
+      sleep 2
+    done
 
-    curl -X POST http://127.0.0.1:8000/scrape/ \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{"url":"https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"}'
+### Interfaces
 
-### 4. Ver previsão
+- **Streamlit:** http://localhost:8501 (login `teste` / `123456`)
+- **API Swagger:** http://localhost:8000/docs
+- **Grafana:** http://localhost:3000 (admin/admin)
+- **Prometheus:** http://localhost:9090
+- **Mailpit UI:** http://localhost:8025
+- **MinIO Console:** http://localhost:9001 (minioadmin/minioadmin)
 
-    curl -H "Authorization: Bearer $TOKEN" \
-      http://127.0.0.1:8000/products/1/forecast
+## 🧪 Testes
 
-## ⏰ Automação
+    sudo docker exec monitor_micro-api-1 pytest -v tests/test_integration.py
 
-O scheduler roda **dentro da API** (APScheduler com jobstore persistente):
+Cobre: root, auth obrigatório, listagem, analytics, forecast, duplicata (409), metrics.
+**7 testes**, batendo na API real.
 
-- **A cada 1 hora:** exporta `price_history` para Parquet no MinIO
-- **A cada 6 horas:** re-scrape de todos os produtos → novos preços
+## 📦 Estrutura
 
-Os jobs sobrevivem a `docker compose restart` e a desligar/ligar o PC
-(ficam salvos no Postgres). Ao subir, jobs atrasados rodam na hora.
+    app/
+      main.py              FastAPI + scheduler startup + tabelas auto
+      models.py            User, Product, PriceHistory, SchedulerState
+      schemas.py           Pydantic
+      database.py          async (asyncpg) + sync (psycopg2)
+      tasks.py             worker RQ: CoinGecko com retry 429
+      scheduler.py         APScheduler + upload incremental MinIO
+      email_utils.py       Mailpit (dev) ou SMTP TLS (prod)
+      ml/forecast.py       ARIMA com agregação diária + fallback baseline
+      analytics/           DuckDB sobre Parquet
+      routes/auth.py       JWT
+    tests/
+      conftest.py          fixtures (token, api_url)
+      test_integration.py  7 testes batendo na API real
+    app_ui.py              Streamlit
+    docker-compose.yml     9 serviços (api, worker, db, redis, minio,
+                           mailpit, frontend, prometheus, grafana)
+    DEMO.md                Runbook de demonstração
 
-## 📊 Analytics + ML
+## 🔧 Variáveis de ambiente
 
-**DuckDB** lê os Parquets direto do MinIO. Endpoints:
+Copie `.env.example` para `.env` e ajuste:
 
-- `/analytics/stats` — preço médio, mínimo, máximo, contagem
-- `/analytics/variation/{id}` — variação absoluta e percentual
+    DATABASE_URL=postgresql+asyncpg://postgres:123456@db:5432/postgres
+    REDIS_HOST=redis
+    REDIS_PORT=6379
+    MINIO_ENDPOINT=minio:9000
+    MINIO_ACCESS_KEY=minioadmin
+    MINIO_SECRET_KEY=minioadmin
 
-**Previsão** (`app/ml/forecast.py`):
+    # Email — dev: Mailpit sem auth; prod: SMTP com TLS
+    SMTP_HOST=mailpit
+    SMTP_PORT=1025
+    SMTP_USER=
+    SMTP_PASSWORD=
+    EMAIL_FROM=alerts@monitor.micro
 
-- < 10 amostras: baseline (último preço repetido)
-- >= 10 amostras: ARIMA(1,0,0)
-- Troca automática, sem mudar endpoint ou dashboard
+    # JWT
+    SECRET_KEY=change-me-in-production
 
-## 🐳 Serviços no docker-compose
+## ⚠️ Notas
 
-| Serviço | Porta | O quê |
-|---|---|---|
-| api | 8000 | FastAPI |
-| worker | — | RQ worker |
-| db | 5432 | PostgreSQL |
-| redis | 6379 | Broker RQ |
-| minio | 9000/9001 | S3 + console |
-| frontend | 8501 | Streamlit |
-| prometheus | 9090 | Métricas |
-| grafana | 3000 | Dashboards |
-
-## 📚 Documentação adicional
-
-- [`RUNBOOK.md`](RUNBOOK.md) — comandos do dia-a-dia
-- [`BOOT.md`](BOOT.md) — como subir após desligar o PC
-- [`DEPLOY_VPS.md`](DEPLOY_VPS.md) — deploy em VPS com Nginx + HTTPS
-
-## 🛣️ Roadmap
-
-- [x] Fase 0 — Infra + Git + secrets
-- [x] Fase 1 — Pipeline de dados (scrape → DB → MinIO)
-- [x] Fase 2 — Analytics (DuckDB + endpoints + dashboard)
-- [x] Fase 3 — ML (baseline + ARIMA preparado)
-- [x] Fase 5 — Prometheus + Grafana provisionado
-- [ ] Fase 4 — Deploy em VPS (roteiro em DEPLOY_VPS.md)
-- [ ] ARIMA em produção (automático ao atingir 10 amostras/produto)
-
-## 📝 Licença
-
-MIT
-
-## 👤 Autor
-
-Pedrinh997 — https://github.com/Pedrinh997
+- **Tabelas criadas automaticamente** no startup da API (idempotente).
+- **Scheduler roda 24h/6h** (scrape/minio) — evita estourar rate limit do CoinGecko.
+- **Upload incremental** ao MinIO via tabela `scheduler_state` (último id enviado).
+- **Emails em dev** ficam no Mailpit (http://localhost:8025), não saem pra internet.

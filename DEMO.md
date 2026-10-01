@@ -1,6 +1,8 @@
 # 🎬 DEMO AO VIVO — Monitor Micro
 
-## Como ligar tudo em 1 comando
+Monitoramento de criptomoedas com ML. Pipeline completo: CoinGecko → Postgres → MinIO → ML.
+
+## Ligar tudo em 1 comando
 
     ~/demo.sh
 
@@ -12,71 +14,61 @@ Esse script:
 
 **Login:** `teste` / `123456`
 
----
-
 ## O que mostrar em 5 minutos
 
-### 1. Dashboard público (30s)
+### 1. Dashboard (30s)
 Abre a URL do Streamlit. Faz login.
-Mostra:
 - Cards de analytics (amostras, média, min, max)
-- Lista de produtos com preço atual
+- 28 moedas com preço atual (💵) e data (📅)
 
-### 2. Histórico de um produto (1 min)
-Clica em **📈 Ver** em qualquer produto.
-Mostra:
-- Gráfico de evolução do preço
-- Botão de exportar CSV
-- Card de previsão (baseline/ARIMA)
+### 2. Histórico + ML (1 min)
+Clica em **📈 Ver** em qualquer moeda.
+- Gráfico de evolução (30 dias)
+- Botão **⬇️ Exportar CSV**
+- Previsão ARIMA dos próximos 7 dias (`arima(1,0,0)`)
 
 ### 3. Swagger da API (1 min)
-Abre `URL_API/docs`.
-Mostra os endpoints documentados automaticamente pelo FastAPI.
+Abre `URL_API/docs`. Endpoints:
+- `POST /scrape/` — cadastra moeda e enfileira
+- `GET /products/{id}/forecast` — previsão ARIMA
+- `GET /analytics/stats` — DuckDB sobre Parquet
 
-### 4. Grafana (1 min)
-Abre `URL_GRAFANA/login` (admin/admin).
-Mostra o dashboard "Monitor Micro — API" com métricas em tempo real.
+### 4. Alertas de email (30s)
+Mailpit captura emails em dev:
+- UI: http://localhost:8025
+- API: `curl http://localhost:8025/api/v1/messages`
+- Setar `target_price` no Bitcoin → próximo scrape dispara alerta
 
-### 5. Scheduler (30s)
+### 5. Grafana (1 min)
+`URL_GRAFANA/login` (admin/admin). Dashboard com métricas em tempo real.
+
+### 6. Scheduler + logs (30s)
+
     docker exec monitor_micro-db-1 psql -U postgres -d postgres -c \
       "SELECT id, next_run_time FROM apscheduler_jobs;"
 
-Mostra os 2 jobs (upload MinIO 1h, scrape 6h) com persistência no Postgres.
+Mostra 2 jobs persistentes: scrape 24h, minio 6h.
 
-### 6. Logs em tempo real (30s)
-    docker logs -f monitor_micro-worker-1
+## Arquitetura (30s)
 
-Mostra o worker processando jobs do RQ.
+    CoinGecko → Postgres → Parquet/MinIO → DuckDB → FastAPI → Streamlit
+                                                     ↑
+                                                 ARIMA forecast
+                                                     ↓
+                                            Mailpit / SMTP (alertas)
 
----
-
-## Arquitetura (para explicar em 30s)
-
-    Scraper → Postgres → Parquet/MinIO → DuckDB → API → Streamlit
-                                                ↑
-                                          ML forecast
-
-8 containers Docker. Postgres, Redis, MinIO, Prometheus e Grafana.
-
----
+10 containers Docker. 28 moedas, ~2500 amostras de série temporal real.
 
 ## Comandos durante a demo
 
-Ver URLs atuais:
+    ~/tunnel.sh url              # URLs atuais
+    docker logs -f monitor_micro-worker-1
+    docker logs -f monitor_micro-api-1
 
-    ~/tunnel.sh url
-
-Parar tudo depois:
+## Parar depois
 
     ~/tunnel.sh stop
     docker compose down
-
-Logs em tempo real:
-
-    docker logs -f monitor_micro-api-1
-    docker logs -f monitor_micro-worker-1
-
----
 
 ## Se algo der errado
 
@@ -84,12 +76,13 @@ Logs em tempo real:
 
     docker logs monitor_micro-api-1 --tail 50
 
-**URL pública não abre:**
-
-    ~/tunnel.sh restart
-
 **Docker parado:**
 
     sudo nohup dockerd > /tmp/docker.log 2>&1 &
     sleep 8
     docker compose up -d
+
+**Email não envia:**
+
+    docker logs monitor_micro-worker-1 | grep -iE "ALERTA|Email"
+    curl http://localhost:8025/api/v1/messages
