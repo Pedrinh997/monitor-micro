@@ -14,14 +14,28 @@ logger = logging.getLogger(__name__)
 from .database import SyncSessionLocal, SYNC_DATABASE_URL
 
 def upload_to_minio():
-    """Coleta preços do banco e salva em Parquet no MinIO."""
-    logger.info("📤 Iniciando upload para MinIO")
+    """Coleta APENAS preços novos e salva em Parquet no MinIO.
+
+    Usa a tabela scheduler_state pra rastrear o último price_history.id enviado.
+    """
+    logger.info("📤 Iniciando upload incremental para MinIO")
     db = SyncSessionLocal()
     try:
-        prices = db.query(models.PriceHistory).all()
+        # Lê último id enviado
+        state = db.query(models.SchedulerState).filter_by(key="last_upload_id").first()
+        last_id = int(state.value) if state else 0
+
+        prices = (
+            db.query(models.PriceHistory)
+            .filter(models.PriceHistory.id > last_id)
+            .order_by(models.PriceHistory.id.asc())
+            .all()
+        )
         if not prices:
-            print("ℹ️ Nenhum preço para salvar.")
+            logger.info(f"ℹ️ Nenhum preço novo desde id={last_id}")
             return
+
+        max_id = max(p.id for p in prices)
         data = [
             {
                 "id": p.id,
@@ -50,16 +64,23 @@ def upload_to_minio():
             s3.create_bucket(Bucket="price-history")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        s3.put_object(
-            Bucket="price-history",
-            Key=f"scrapes/{timestamp}.parquet",
-            Body=buffer.getvalue(),
-        )
-        print(f"✅ {len(data)} registros salvos no MinIO")
+        key = f"scrapes/{timestamp}_id{last_id}-{max_id}.parquet"
+        s3.put_object(Bucket="price-history", Key=key, Body=buffer.getvalue())
+
+        # Atualiza estado só depois do upload OK
+        if state:
+            state.value = str(max_id)
+        else:
+            db.add(models.SchedulerState(key="last_upload_id", value=str(max_id)))
+        db.commit()
+
+        logger.info(f"✅ {len(data)} registros salvos no MinIO (id até {max_id})")
     except Exception as e:
         logger.error(f"❌ Erro no upload para MinIO: {e}")
+        db.rollback()
     finally:
         db.close()
+
 
 def scheduled_scrape_all():
     """Scraping agendado + upload para MinIO."""

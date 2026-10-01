@@ -31,3 +31,10 @@ class PriceHistory(Base):
     currency = Column(String(10), default="BRL")
     scraped_at = Column(DateTime, default=datetime.utcnow)
     product = relationship("Product", back_populates="price_history")
+
+class SchedulerState(Base):
+    """Estado persistente do scheduler (ex: último ID enviado ao MinIO)."""
+    __tablename__ = "scheduler_state"
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
+

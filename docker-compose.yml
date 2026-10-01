@@ -30,6 +30,12 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:123456@db:5432/postgres
       REDIS_HOST: redis
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       REDIS_PORT: 6379
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
@@ -55,6 +61,12 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:123456@db:5432/postgres
       REDIS_HOST: redis
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       REDIS_PORT: 6379
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
