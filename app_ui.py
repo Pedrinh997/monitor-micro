@@ -126,9 +126,9 @@ try:
             a, b, c, d = st.columns(4)
             cur = stats.get("currency", "")
             a.metric("Amostras", stats.get("count"))
-            b.metric("Preço Médio", f"{stats.get('avg_price', 0):.2f} {cur}")
-            c.metric("Mínimo",     f"{stats.get('min_price', 0):.2f} {cur}")
-            d.metric("Máximo",     f"{stats.get('max_price', 0):.2f} {cur}")
+            b.metric("Preço Médio", fmt_price(stats.get('avg_price', 0)))
+            c.metric("Mínimo",     fmt_price(stats.get('min_price', 0)))
+            d.metric("Máximo",     fmt_price(stats.get('max_price', 0)))
         else:
             st.info("Sem amostras no data lake ainda.")
     else:
