@@ -95,7 +95,7 @@ def start_scheduler():
     if "scrape_all_products" not in existing:
         scheduler.add_job(
             scheduled_scrape_all,
-            trigger=IntervalTrigger(hours=6),
+            trigger=IntervalTrigger(hours=24),
             id="scrape_all_products",
         )
         logger.info("  + job scrape_all_products adicionado")
@@ -105,7 +105,7 @@ def start_scheduler():
     if "upload_to_minio" not in existing:
         scheduler.add_job(
             upload_to_minio,
-            trigger=IntervalTrigger(hours=1),
+            trigger=IntervalTrigger(hours=6),
             id="upload_to_minio",
         )
         logger.info("  + job upload_to_minio adicionado")

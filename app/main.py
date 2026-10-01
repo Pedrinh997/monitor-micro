@@ -36,6 +36,13 @@ scheduler = None
 @app.on_event("startup")
 def startup_event():
     global scheduler
+
+    # 1. Garante que as tabelas existem (idempotente)
+    from .database import Base, sync_engine
+    Base.metadata.create_all(sync_engine)
+    logger.info("✅ Tabelas garantidas")
+
+    # 2. Scheduler
     scheduler = start_scheduler()
     logger.info("✅ Agendador iniciado com sucesso")
 
