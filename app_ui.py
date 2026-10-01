@@ -6,6 +6,22 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
+def fmt_price(value):
+    """Formata preço adaptando casas decimais ao valor.
+
+    - >= 1:      $ 1234.56
+    - >= 0.01:   $ 0.1234
+    - < 0.01:    $ 0.00000012 (cientificamente pequenos)
+    """
+    if value is None:
+        return "$ —"
+    if value >= 1:
+        return f"$ {value:,.2f}"
+    if value >= 0.01:
+        return f"$ {value:.4f}"
+    return f"$ {value:.8f}".rstrip('0').rstrip('.') if '.' in f"{value:.8f}" else f"$ {value:.8f}"
+
+
 API_URL = os.getenv("API_URL", "http://api:8000")
 
 st.set_page_config(page_title="Monitor Micro", layout="wide")
@@ -80,7 +96,7 @@ with st.sidebar:
     st.divider()
     st.header("🔗 Adicionar Produto")
     url = st.text_input("ID da moeda (ex: bitcoin, ethereum)")
-    target_price = st.number_input("Preço Alvo (R$)", min_value=0.0, step=1.0)
+    target_price = st.number_input("Preço Alvo (USD)", min_value=0.0, step=1.0)
     if st.button("🚀 Monitorar"):
         if url:
             try:
@@ -185,7 +201,7 @@ try:
                     col1, col2, col3, col4, col5 = st.columns([4, 1, 1, 1, 1])
                     col1.write(f"**{p.get('title') or 'Sem título'}**")
                     col2.write(f"ID: {p['id']}")
-                    col3.write(f"$ {last_price:.2f}" if last_price else "$ —")
+                    col3.write(fmt_price(last_price))
                     col4.write(f"📅 {last_date}" if last_date else "")
                     if col5.button(f"📈 Ver", key=f"hist_{p['id']}"):
                         st.session_state['selected'] = p['id']
