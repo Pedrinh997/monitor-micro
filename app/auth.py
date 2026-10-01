@@ -13,6 +13,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkeychange_this_in_production_123456789")
+
+if SECRET_KEY == "supersecretkeychange_this_in_production_123456789":
+    import warnings
+    warnings.warn(
+        "SECRET_KEY está com valor DEFAULT. Em produção, defina SECRET_KEY no .env",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

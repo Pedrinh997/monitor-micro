@@ -1,4 +1,8 @@
-"""Fixtures compartilhadas para testes de integração."""
+"""Fixtures compartilhadas para testes.
+
+- Fixtures de integração (api_url, token, auth_headers)
+- Skip automático se API não estiver no ar (para CI)
+"""
 import os
 import requests
 import pytest
@@ -6,8 +10,19 @@ import pytest
 API_URL = os.getenv("API_URL_TEST", "http://localhost:8000")
 
 
+def _api_is_up(url: str, timeout: float = 2.0) -> bool:
+    try:
+        r = requests.get(f"{url}/", timeout=timeout)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
 @pytest.fixture(scope="session")
 def api_url():
+    """URL base da API. Skipa se API não estiver no ar."""
+    if not _api_is_up(API_URL):
+        pytest.skip(f"API não responde em {API_URL} — testes de integração skipados")
     return API_URL
 
 
