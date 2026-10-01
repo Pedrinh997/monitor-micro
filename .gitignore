@@ -69,3 +69,4 @@ tmp/
 temp/
 uploads/
 exports/
+*.bak.*
