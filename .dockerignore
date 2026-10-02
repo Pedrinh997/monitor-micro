@@ -1,20 +1,44 @@
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg
-*.egg-info
-dist
-build
-venv
-env
+# Git
 .git
 .gitignore
-*.db
-*.sqlite3
-*.log
-*.tmp
-.DS_Store
+.github
+
+# Python cache
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+ENV/
+
+# Backups locais
+*.bak
+*.bak.*
+*.unpinned
+
+# Env (contém segredos)
 .env
+.env.*
+!.env.example
+
+# Documentação
+*.md
+docs/
+
+# Testes (não precisam entrar na imagem de produção)
+tests/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
