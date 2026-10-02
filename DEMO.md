@@ -4,7 +4,7 @@ Monitoramento de criptomoedas com ML. Pipeline completo: CoinGecko → Postgres 
 
 ## Ligar tudo em 1 comando
 
-    ~/demo.sh
+    scripts/demo.sh
 
 Esse script:
 1. Sobe o dockerd + containers
@@ -61,13 +61,13 @@ Mostra 2 jobs persistentes: scrape 24h, minio 6h.
 
 ## Comandos durante a demo
 
-    ~/tunnel.sh url              # URLs atuais
+    scripts/tunnel.sh url              # URLs atuais
     docker logs -f monitor_micro-worker-1
     docker logs -f monitor_micro-api-1
 
 ## Parar depois
 
-    ~/tunnel.sh stop
+    scripts/tunnel.sh stop
     docker compose down
 
 ## Se algo der errado
