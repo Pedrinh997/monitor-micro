@@ -57,7 +57,6 @@ Instrumentator().instrument(app).expose(app)
 logger.info("🚀 API do Monitor Micro iniciada!")
 
 # --- SCHEDULER ---
-scheduler = None
 
 
 
