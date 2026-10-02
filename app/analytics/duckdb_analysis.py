@@ -1,11 +1,21 @@
-"""Análise de preços históricos via DuckDB lendo Parquets do MinIO."""
+"""Análise de preços históricos via DuckDB lendo Parquets do MinIO.
+
+Cache:
+- Parquets ficam em CACHE_DIR (persistente durante a vida do container).
+- ETags do bucket são salvos em .etags.json para detectar mudanças.
+- Cache hit => zero downloads. Cache miss => sincroniza só o necessário.
+"""
+import json
 import os
 import tempfile
 from pathlib import Path
+
 import boto3
 import duckdb
 
 BUCKET = "price-history"
+CACHE_DIR = Path(os.getenv("ANALYTICS_CACHE_DIR", tempfile.gettempdir())) / "duckdb_parquet_cache"
+ETAGS_FILE = CACHE_DIR / ".etags.json"
 
 
 def _s3():
@@ -18,26 +28,56 @@ def _s3():
     )
 
 
-def _download_parquets(dest: str) -> int:
-    """Baixa todos os .parquet do bucket para dest/. Retorna contagem."""
-    s3 = _s3()
-    n = 0
+def _list_parquets(s3) -> list[dict]:
     try:
         objs = s3.list_objects_v2(Bucket=BUCKET)
     except Exception:
+        return []
+    return [o for o in objs.get("Contents", []) if o["Key"].endswith(".parquet")]
+
+
+def _load_cached_etags() -> dict | None:
+    try:
+        return json.loads(ETAGS_FILE.read_text())
+    except Exception:
+        return None
+
+
+def _save_etags(etags: dict) -> None:
+    try:
+        ETAGS_FILE.write_text(json.dumps(etags))
+    except Exception:
+        pass
+
+
+def _sync_parquets() -> int:
+    """Garante cache atualizado. Retorna número de parquets disponíveis."""
+    s3 = _s3()
+    parquets = _list_parquets(s3)
+    if not parquets:
         return 0
-    for obj in objs.get("Contents", []):
-        key = obj["Key"]
-        if not key.endswith(".parquet"):
-            continue
-        data = s3.get_object(Bucket=BUCKET, Key=key)["Body"].read()
-        (Path(dest) / Path(key).name).write_bytes(data)
-        n += 1
-    return n
+
+    current = {o["Key"]: o["ETag"] for o in parquets}
+    cached = _load_cached_etags()
+    if cached == current and CACHE_DIR.exists():
+        return len(parquets)  # cache hit — nenhum download
+
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    wanted = {Path(k).name for k in current}
+    for f in CACHE_DIR.glob("*.parquet"):
+        if f.name not in wanted:
+            f.unlink()
+
+    for o in parquets:
+        data = s3.get_object(Bucket=BUCKET, Key=o["Key"])["Body"].read()
+        (CACHE_DIR / Path(o["Key"]).name).write_bytes(data)
+
+    _save_etags(current)
+    return len(parquets)
 
 
-def _load_view(con, parquet_dir: str):
-    pattern = str(Path(parquet_dir) / "*.parquet")
+def _load_view(con, parquet_dir: Path):
+    pattern = str(parquet_dir / "*.parquet")
     con.execute(
         f"CREATE OR REPLACE VIEW prices AS "
         f"SELECT * FROM read_parquet('{pattern}')"
@@ -46,62 +86,64 @@ def _load_view(con, parquet_dir: str):
 
 def get_price_stats(product_id: int | None = None) -> dict:
     """Preço médio, mínimo, máximo e contagem para um produto (ou todos)."""
-    with tempfile.TemporaryDirectory() as tmp:
-        n = _download_parquets(tmp)
-        if n == 0:
-            return {"error": "sem parquets no bucket", "count": 0}
-        con = duckdb.connect()
-        _load_view(con, tmp)
-        where = f"WHERE product_id = {product_id}" if product_id else ""
-        row = con.execute(f"""
-            SELECT
-                COUNT(*)      AS n,
-                AVG(price)    AS avg_price,
-                MIN(price)    AS min_price,
-                MAX(price)    AS max_price,
-                MAX(currency) AS currency
-            FROM prices
-            {where}
-        """).fetchone()
-        con.close()
-        return {
-            "count":     int(row[0]),
-            "avg_price": float(row[1]) if row[1] is not None else None,
-            "min_price": float(row[2]) if row[2] is not None else None,
-            "max_price": float(row[3]) if row[3] is not None else None,
-            "currency":  row[4],
-        }
+    n = _sync_parquets()
+    if n == 0:
+        return {"error": "sem parquets no bucket", "count": 0}
+
+    con = duckdb.connect()
+    _load_view(con, CACHE_DIR)
+    where = f"WHERE product_id = {product_id}" if product_id else ""
+    row = con.execute(f"""
+        SELECT
+            COUNT(*)      AS n,
+            AVG(price)    AS avg_price,
+            MIN(price)    AS min_price,
+            MAX(price)    AS max_price,
+            MAX(currency) AS currency
+        FROM prices
+        {where}
+    """).fetchone()
+    con.close()
+    return {
+        "count":     int(row[0]),
+        "avg_price": float(row[1]) if row[1] is not None else None,
+        "min_price": float(row[2]) if row[2] is not None else None,
+        "max_price": float(row[3]) if row[3] is not None else None,
+        "currency":  row[4],
+    }
 
 
 def get_price_variation(product_id: int) -> dict:
     """Variação absoluta e percentual entre os 2 últimos preços do produto."""
-    with tempfile.TemporaryDirectory() as tmp:
-        n = _download_parquets(tmp)
-        if n == 0:
-            return {"error": "sem parquets no bucket"}
-        con = duckdb.connect()
-        _load_view(con, tmp)
-        rows = con.execute(f"""
-            SELECT price, scraped_at
-            FROM prices
-            WHERE product_id = {product_id}
-            ORDER BY scraped_at DESC
-            LIMIT 2
-        """).fetchall()
-        con.close()
-        if len(rows) < 2:
-            return {
-                "product_id": product_id,
-                "message": "histórico insuficiente (< 2 amostras)",
-            }
-        current, _ = rows[0]
-        previous, _ = rows[1]
-        diff = current - previous
-        pct = (diff / previous * 100) if previous else None
+    n = _sync_parquets()
+    if n == 0:
+        return {"error": "sem parquets no bucket"}
+
+    con = duckdb.connect()
+    _load_view(con, CACHE_DIR)
+    rows = con.execute(f"""
+        SELECT price, scraped_at
+        FROM prices
+        WHERE product_id = {product_id}
+        ORDER BY scraped_at DESC
+        LIMIT 2
+    """).fetchall()
+    con.close()
+
+    if len(rows) < 2:
         return {
             "product_id": product_id,
-            "current":    float(current),
-            "previous":   float(previous),
-            "diff":       float(diff),
-            "pct_change": round(float(pct), 2) if pct is not None else None,
+            "message": "histórico insuficiente (< 2 amostras)",
         }
+
+    current, _ = rows[0]
+    previous, _ = rows[1]
+    diff = current - previous
+    pct = (diff / previous * 100) if previous else None
+    return {
+        "product_id": product_id,
+        "current":    float(current),
+        "previous":   float(previous),
+        "diff":       float(diff),
+        "pct_change": round(float(pct), 2) if pct is not None else None,
+    }
