@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from datetime import datetime
 from typing import Optional
 
@@ -23,8 +23,7 @@ class ProductOut(BaseModel):
     created_at: datetime
     owner_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PriceHistoryOut(BaseModel):
     id: int
@@ -44,8 +43,7 @@ class UserOut(BaseModel):
     email: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):
     access_token: str
