@@ -1,6 +1,7 @@
 import os
 import time
 import redis
+from contextlib import asynccontextmanager
 from rq import Queue
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -18,8 +19,33 @@ from .ml.forecast import predict_prices
 redis_conn = redis.Redis(host=os.getenv("REDIS_HOST", "redis"), port=int(os.getenv("REDIS_PORT", 6379)), decode_responses=True)
 queue = Queue("scraping", connection=redis_conn)
 
+# --- SCHEDULER STATE ---
+scheduler = None
+
+
+# --- LIFESPAN (startup + shutdown) ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global scheduler
+
+    # Startup
+    from .database import Base, sync_engine
+    Base.metadata.create_all(sync_engine)
+    logger.info("✅ Tabelas garantidas")
+
+    scheduler = start_scheduler()
+    logger.info("✅ Agendador iniciado com sucesso")
+
+    yield
+
+    # Shutdown
+    if scheduler:
+        scheduler.shutdown()
+        logger.info("🛑 Agendador finalizado")
+
+
 # --- APP ---
-app = FastAPI(title="Monitor Micro", version="1.0.0")
+app = FastAPI(title="Monitor Micro", version="1.0.0", lifespan=lifespan)
 
 # Inclui rotas de autenticação
 app.include_router(auth_routes.router)
@@ -33,24 +59,7 @@ logger.info("🚀 API do Monitor Micro iniciada!")
 # --- SCHEDULER ---
 scheduler = None
 
-@app.on_event("startup")
-def startup_event():
-    global scheduler
 
-    # 1. Garante que as tabelas existem (idempotente)
-    from .database import Base, sync_engine
-    Base.metadata.create_all(sync_engine)
-    logger.info("✅ Tabelas garantidas")
-
-    # 2. Scheduler
-    scheduler = start_scheduler()
-    logger.info("✅ Agendador iniciado com sucesso")
-
-@app.on_event("shutdown")
-def shutdown_event():
-    if scheduler:
-        scheduler.shutdown()
-        logger.info("🛑 Agendador finalizado")
 
 @app.get("/")
 async def root():
