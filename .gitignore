@@ -70,3 +70,25 @@ temp/
 uploads/
 exports/
 *.bak.*
+
+# Backups locais
+*.bak
+*.bak.*
+*.save
+*.save.*
+.env.save*
+
+# Lixo de shell
+=
+CACHED
+exporting
+naming
+reading
+resolve
+transferring
+unpacking
+[api]
+[api
+[frontend]
+[internal]
+[worker]
