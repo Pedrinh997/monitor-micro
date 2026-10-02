@@ -17,7 +17,7 @@ section() { printf "\n=== %s ===\n" "$1"; }
 
 # --- 1. Containers ---
 section "1. Containers"
-EXPECTED="db redis api worker minio prometheus grafana mailpit"
+EXPECTED="db redis api worker frontend minio prometheus grafana mailpit"
 RUNNING=$(sudo docker compose ps --status running --format '{{.Service}}' 2>/dev/null | sort)
 for svc in $EXPECTED; do
   if echo "$RUNNING" | grep -qx "$svc"; then ok "$svc running"; else bad "$svc NÃO está running"; fi
