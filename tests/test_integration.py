@@ -24,7 +24,7 @@ def test_products_with_auth(api_url, auth_headers):
 
 def test_analytics_stats(api_url, auth_headers):
     import requests
-    r = requests.get(f"{api_url}/analytics/stats", headers=auth_headers, timeout=10)
+    r = requests.get(f"{api_url}/analytics/stats", headers=auth_headers, timeout=30)
     assert r.status_code == 200
     data = r.json()
     assert "count" in data

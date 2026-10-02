@@ -33,6 +33,15 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(sync_engine)
     logger.info("✅ Tabelas garantidas")
 
+    # Warm-up do DuckDB: aquece TLS/DNS/conexão com MinIO
+    # Não bloqueia se falhar — o próximo request paga o custo
+    try:
+        from .analytics.duckdb_analysis import get_price_stats
+        get_price_stats()
+        logger.info("✅ Analytics warm-up OK")
+    except Exception as e:
+        logger.warning(f"⚠️ Analytics warm-up falhou (não bloqueia): {e}")
+
     scheduler = start_scheduler()
     logger.info("✅ Agendador iniciado com sucesso")
 
