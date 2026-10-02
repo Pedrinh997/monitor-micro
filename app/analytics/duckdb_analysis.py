@@ -90,11 +90,21 @@ def _sync_parquets() -> int:
 
 
 def _load_view(con, parquet_dir: Path):
+    """Cria view `prices` deduplicada.
+
+    O bucket mistura snapshots cumulativos antigos (dump completo do
+    histórico) com deltas novos (só o range novo). read_parquet('*')
+    soma as mesmas medições N vezes — count e avg_price inflados.
+
+    Dedup por (product_id, scraped_at, price): com timestamp em
+    microssegundos, colisão legítima é praticamente nula.
+    """
     pattern = str(parquet_dir / "*.parquet")
-    con.execute(
-        f"CREATE OR REPLACE VIEW prices AS "
-        f"SELECT * FROM read_parquet('{pattern}')"
-    )
+    con.execute(f"""
+        CREATE OR REPLACE VIEW prices AS
+        SELECT DISTINCT product_id, scraped_at, price, currency
+        FROM read_parquet('{pattern}')
+    """)
 
 
 def get_price_stats(product_id: int | None = None) -> dict:
