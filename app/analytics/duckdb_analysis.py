@@ -51,29 +51,42 @@ def _save_etags(etags: dict) -> None:
 
 
 def _sync_parquets() -> int:
-    """Garante cache atualizado. Retorna número de parquets disponíveis."""
+    """Garante cache atualizado. Retorna número de parquets ÚNICOS.
+
+    Deduplica por ETag: dois keys com o mesmo conteúdo contam como um só.
+    Sem isso, read_parquet('*.parquet') soma as mesmas linhas N vezes,
+    inflando count e avg_price.
+    """
     s3 = _s3()
-    parquets = _list_parquets(s3)
-    if not parquets:
+    all_parquets = _list_parquets(s3)
+    if not all_parquets:
         return 0
 
-    current = {o["Key"]: o["ETag"] for o in parquets}
+    seen_etags: set[str] = set()
+    unique: list[dict] = []
+    for o in all_parquets:
+        if o["ETag"] in seen_etags:
+            continue
+        seen_etags.add(o["ETag"])
+        unique.append(o)
+
+    current = {o["Key"]: o["ETag"] for o in unique}
     cached = _load_cached_etags()
     if cached == current and CACHE_DIR.exists():
-        return len(parquets)  # cache hit — nenhum download
+        return len(unique)
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    wanted = {Path(k).name for k in current}
+    wanted = {Path(o["Key"]).name for o in unique}
     for f in CACHE_DIR.glob("*.parquet"):
         if f.name not in wanted:
             f.unlink()
 
-    for o in parquets:
+    for o in unique:
         data = s3.get_object(Bucket=BUCKET, Key=o["Key"])["Body"].read()
         (CACHE_DIR / Path(o["Key"]).name).write_bytes(data)
 
     _save_etags(current)
-    return len(parquets)
+    return len(unique)
 
 
 def _load_view(con, parquet_dir: Path):
