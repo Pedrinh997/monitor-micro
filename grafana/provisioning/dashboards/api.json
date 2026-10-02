@@ -61,6 +61,6 @@
   "time": { "from": "now-1h", "to": "now" },
   "timezone": "browser",
   "title": "Monitor Micro — API",
-  "uid": "monitor-micro-api",
+  "uid": "cryptopulse-api",
   "version": 1
 }
