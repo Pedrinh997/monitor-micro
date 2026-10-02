@@ -38,19 +38,32 @@ if sudo docker exec monitor_micro-db-1 pg_isready -U postgres >/dev/null 2>&1; t
 else
   bad "pg_isready falhou"
 fi
-TABLES=$(sudo docker exec monitor_micro-db-1 psql -U postgres -d crypto_pulse -tAc \
+DB_NAME=$(sudo docker exec monitor_micro-db-1 sh -c 'echo $POSTGRES_DB' 2>/dev/null)
+DB_NAME=${DB_NAME:-postgres}
+TABLES=$(sudo docker exec monitor_micro-db-1 psql -U postgres -d "$DB_NAME" -tAc \
   "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'" 2>/dev/null)
-if [ "${TABLES:-0}" -gt 0 ]; then ok "$TABLES tabelas no schema public"; else bad "nenhuma tabela"; fi
+if [ "${TABLES:-0}" -gt 0 ]; then ok "$TABLES tabelas em $DB_NAME.public"; else bad "nenhuma tabela em $DB_NAME.public"; fi
 
 # --- 4. Redis ---
 section "4. Redis"
 PONG=$(sudo docker exec monitor_micro-redis-1 redis-cli ping 2>/dev/null)
 if [ "$PONG" = "PONG" ]; then ok "redis-cli ping → PONG"; else bad "redis não respondeu: $PONG"; fi
 
-# --- 5. MinIO + bucket ---
+# --- 5. MinIO + bucket (via S3 API, não filesystem) ---
 section "5. MinIO / bucket price-history"
-N_OBJ=$(sudo docker exec monitor_micro-minio-1 sh -c \
-  "find /data/price-history -name '*.parquet' 2>/dev/null | wc -l")
+N_OBJ=$(sudo docker exec monitor_micro-api-1 python3 -c "
+import os, boto3
+s3 = boto3.client('s3',
+    endpoint_url=f\"http://{os.getenv('MINIO_ENDPOINT','minio:9000')}\" ,
+    aws_access_key_id=os.getenv('MINIO_ACCESS_KEY','minioadmin'),
+    aws_secret_access_key=os.getenv('MINIO_SECRET_KEY','minioadmin'),
+    region_name='us-east-1')
+try:
+    r = s3.list_objects_v2(Bucket='price-history')
+    print(sum(1 for o in r.get('Contents',[]) if o['Key'].endswith('.parquet')))
+except Exception:
+    print(0)
+" 2>/dev/null)
 if [ "${N_OBJ:-0}" -gt 0 ]; then ok "$N_OBJ parquets no bucket"; else warn "0 parquets no bucket"; fi
 
 # --- 6. Worker / scheduler ---
