@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
 
 
 # --- APP ---
-app = FastAPI(title="Monitor Micro", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="CryptoPulse", version="1.0.0", lifespan=lifespan)
 
 # Inclui rotas de autenticação
 app.include_router(auth_routes.router)

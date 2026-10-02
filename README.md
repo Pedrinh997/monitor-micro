@@ -1,4 +1,4 @@
-# 📊 Monitor Micro
+# 📊 CryptoPulse
 
 Sistema de monitoramento de preços de criptomoedas com arquitetura de microserviços.
 Coleta via API REST → persistência → data lake → analytics → previsão ML → dashboard.

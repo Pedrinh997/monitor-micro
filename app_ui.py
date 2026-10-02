@@ -24,8 +24,8 @@ def fmt_price(value):
 
 API_URL = os.getenv("API_URL", "http://api:8000")
 
-st.set_page_config(page_title="Monitor Micro", layout="wide")
-st.title("📊 Monitor Micro - Frontend")
+st.set_page_config(page_title="CryptoPulse", layout="wide")
+st.title("📊 CryptoPulse - Frontend")
 
 if 'selected' not in st.session_state:
     st.session_state['selected'] = None

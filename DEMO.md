@@ -1,4 +1,4 @@
-# 🎬 DEMO AO VIVO — Monitor Micro
+# 🎬 DEMO AO VIVO — CryptoPulse
 
 Monitoramento de criptomoedas com ML. Pipeline completo: CoinGecko → Postgres → MinIO → ML.
 
