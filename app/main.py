@@ -54,7 +54,7 @@ app.include_router(auth_routes.router)
 Instrumentator().instrument(app).expose(app)
 
 # --- LOGS ---
-logger.info("🚀 API do Monitor Micro iniciada!")
+logger.info("🚀 API do CryptoPulse iniciada!")
 
 # --- SCHEDULER ---
 
@@ -63,7 +63,7 @@ logger.info("🚀 API do Monitor Micro iniciada!")
 @app.get("/")
 async def root():
     logger.info("Endpoint / acessado")
-    return {"message": "Monitor Micro - API com filas"}
+    return {"message": "CryptoPulse - API com filas"}
 
 @app.post("/scrape/")
 async def scrape_url(request: schemas.ScrapeRequest, db: Session = Depends(get_db_sync), current_user: models.User = Depends(auth.get_current_user)):
