@@ -87,8 +87,11 @@ reading
 resolve
 transferring
 unpacking
-[api]
-[api
-[frontend]
-[internal]
-[worker]
+
+# Lixo de shell (colchetes literais — precisam de escape)
+\[api\]
+\[api
+\[frontend\]
+\[frontend
+\[internal\]
+\[worker\]
