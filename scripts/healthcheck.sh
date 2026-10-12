@@ -115,7 +115,10 @@ if [ "$CACHE_OK" = "yes" ]; then ok "cache populado (.etags.json presente)"; els
 section "11. Suíte de testes"
 T_RESULT=$(sudo docker exec monitor_micro-api-1 \
   pytest tests/test_smoke.py tests/test_integration.py -q 2>&1 | tail -1)
-if echo "$T_RESULT" | grep -qE "[0-9]+ passed"; then
+# Exige pelo menos 1 passed E nenhum failed/error — senão
+# "10 passed, 4 errors" seria classificado como sucesso.
+if echo "$T_RESULT" | grep -qE "[0-9]+ passed" && \
+   ! echo "$T_RESULT" | grep -qE "[0-9]+ (failed|error)"; then
   ok "$T_RESULT"
 else
   bad "testes falharam: $T_RESULT"
