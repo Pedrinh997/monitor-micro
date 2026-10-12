@@ -124,7 +124,29 @@ def process_scrape_task(product_id: int, url: str):
             db.commit()
             logger.info(f"Produto {product_id} título atualizado para '{product.title}'")
 
+        # Dedup: descarta amostras cujo (product_id, scraped_at) já existe.
+        # Sem isso, cada execução do scheduler (a cada 24h) reinsere os 30
+        # dias de histórico do CoinGecko, inflando price_history em ~29
+        # linhas duplicadas por produto por run.
+        sample_times = [s["scraped_at"] for s in samples if "scraped_at" in s]
+        existing_times = set()
+        if sample_times:
+            rows = (
+                db.query(models.PriceHistory.scraped_at)
+                .filter(
+                    models.PriceHistory.product_id == product_id,
+                    models.PriceHistory.scraped_at.in_(sample_times),
+                )
+                .all()
+            )
+            existing_times = {r.scraped_at for r in rows}
+
+        added = 0
+        skipped = 0
         for s in samples:
+            if "scraped_at" in s and s["scraped_at"] in existing_times:
+                skipped += 1
+                continue
             kwargs = {
                 "product_id": product_id,
                 "price": s["price"],
@@ -133,8 +155,9 @@ def process_scrape_task(product_id: int, url: str):
             if "scraped_at" in s:
                 kwargs["scraped_at"] = s["scraped_at"]
             db.add(models.PriceHistory(**kwargs))
+            added += 1
         db.commit()
-        logger.info(f"Produto {product_id}: {len(samples)} amostras salvas")
+        logger.info(f"Produto {product_id}: {added} novas, {skipped} duplicatas ignoradas")
 
         last_price = samples[-1]["price"]
         if product.target_price and last_price < product.target_price:
