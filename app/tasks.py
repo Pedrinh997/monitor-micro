@@ -11,7 +11,7 @@ from .logger_config import logger
 from .metrics import price_drop_counter
 from .email_utils import send_price_alert
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:123456@db:5432/postgres")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:123456@db:5432/postgres")
 DATABASE_URL = DATABASE_URL.replace("+asyncpg", "+psycopg2")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
