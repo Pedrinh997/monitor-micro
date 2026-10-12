@@ -21,9 +21,15 @@ jobs:
       - name: Run smoke tests
         run: pytest tests/test_smoke.py tests/test_integration.py -v
 
+  # Job preparado para Fase 4 (VPS + Nginx + HTTPS).
+  # Desabilitado enquanto a VPS não existe — sem os secrets SERVER_HOST,
+  # SERVER_USER, SSH_PRIVATE_KEY configurados no repo, este job sempre
+  # falha e pinta TODA run de vermelho, escondendo se os testes passaram.
+  #
+  # Para habilitar: criar os 3 secrets no GitHub e mudar 'false' para 'true'.
   deploy:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
