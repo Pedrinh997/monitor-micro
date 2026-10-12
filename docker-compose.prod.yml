@@ -1,0 +1,49 @@
+# Overlay de produção. Roda com:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+services:
+  db:
+    restart: unless-stopped
+    ports: !reset []
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    restart: unless-stopped
+    ports: !reset []
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    restart: unless-stopped
+    ports: !reset []
+
+  api:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:8000:8000"
+
+  worker:
+    restart: unless-stopped
+
+  frontend:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:8501:8501"
+
+  prometheus:
+    restart: unless-stopped
+    ports: !reset []
+
+  grafana:
+    restart: unless-stopped
+    ports: !reset []
+
+  mailpit:
+    restart: unless-stopped
+    ports: !reset []
