@@ -95,3 +95,8 @@ unpacking
 \[frontend
 \[internal\]
 \[worker\]
+
+!.env.production.example
+
+# Backups locais
+backups/
