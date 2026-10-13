@@ -118,7 +118,7 @@ T_RESULT=$(sudo docker exec monitor_micro-api-1 \
 # Exige pelo menos 1 passed E nenhum failed/error — senão
 # "10 passed, 4 errors" seria classificado como sucesso.
 if echo "$T_RESULT" | grep -qE "[0-9]+ passed" && \
-   ! echo "$T_RESULT" | grep -qE "[0-9]+ (failed|error)"; then
+   ! echo "$T_RESULT" | grep -qE "[0-9]+ (failed|error|skipped)"; then
   ok "$T_RESULT"
 else
   bad "testes falharam: $T_RESULT"

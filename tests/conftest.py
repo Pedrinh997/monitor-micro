@@ -28,25 +28,40 @@ def api_url():
 
 @pytest.fixture(scope="session")
 def token(api_url):
-    """Cria usuário de teste e retorna JWT."""
+    """Cria usuário de teste e retorna JWT.
+
+    Retry: a API pode estar em warm-up após restart do container
+    (cache DuckDB sendo populado, scheduler iniciando). Sem retry,
+    os 4 testes que usam este fixture falham com ConnectionError/timeout
+    enquanto a API ainda não respondeu a primeira request.
+    """
+    import time
     username = "pytest_user"
     password = "pytest_pass_123"
 
-    # Registra (ignora se já existe)
-    requests.post(
-        f"{api_url}/auth/register",
-        json={"username": username, "email": f"{username}@test.com", "password": password},
-        timeout=5,
-    )
+    last_err = None
+    for attempt in range(5):
+        try:
+            # Registra (ignora se já existe)
+            requests.post(
+                f"{api_url}/auth/register",
+                json={"username": username, "email": f"{username}@test.com", "password": password},
+                timeout=10,
+            )
+            # Login
+            r = requests.post(
+                f"{api_url}/auth/token",
+                data={"username": username, "password": password},
+                timeout=10,
+            )
+            if r.status_code == 200:
+                return r.json()["access_token"]
+            last_err = f"HTTP {r.status_code}: {r.text[:200]}"
+        except Exception as e:
+            last_err = f"{type(e).__name__}: {e}"
+        time.sleep(2)
 
-    # Login
-    r = requests.post(
-        f"{api_url}/auth/token",
-        data={"username": username, "password": password},
-        timeout=5,
-    )
-    assert r.status_code == 200, f"Login falhou: {r.status_code} {r.text}"
-    return r.json()["access_token"]
+    raise RuntimeError(f"Login falhou após 5 tentativas: {last_err}")
 
 
 @pytest.fixture
