@@ -143,6 +143,14 @@ else
   warn "cloudflared não está rodando (API pública offline)"
 fi
 
+# --- 13. Frontend Streamlit (checagem funcional) ---
+section "13. Frontend Streamlit"
+if curl -sf -m 5 http://127.0.0.1:8501/_stcore/health >/dev/null 2>&1; then
+  ok "Streamlit responde em /_stcore/health"
+else
+  fail "frontend não responde em 8501 (Streamlit morto ou imagem errada)"
+fi
+
 # --- Resumo ---
 
 section "RESUMO"
