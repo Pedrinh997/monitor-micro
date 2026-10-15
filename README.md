@@ -143,3 +143,45 @@ Copie `.env.example` para `.env` e ajuste:
 - **Scheduler roda 24h/6h** (scrape/minio) — evita estourar rate limit do CoinGecko.
 - **Upload incremental** ao MinIO via tabela `scheduler_state` (último id enviado).
 - **Emails em dev** ficam no Mailpit (http://localhost:8025), não saem pra internet.
+
+---
+
+## 🌐 Exposição pública sem custo (Cloudflare Quick Tunnel)
+
+Como o projeto não exige VPS paga, a API pode ser exposta temporariamente
+via **Cloudflare Quick Tunnel** — URL pública gratuita, sem cartão de crédito.
+
+### Uso
+
+    ~/bin/cryptopulse-tunnel.sh       # só a API
+    ~/bin/cryptopulse-full.sh         # API + Frontend
+
+Cada execução gera URLs novas no formato `https://*.trycloudflare.com`.
+A URL muda a cada reinício — não é estável.
+
+### Limitações
+
+- Depende do PC estar ligado e com internet
+- A URL muda a cada reinício
+- Frontend via túnel pode travar (WebSocket em quick tunnel)
+- Não substitui uma VPS 24/7
+
+### Gerenciamento
+
+    # Ver URL atual da API
+    grep -oE 'https://[a-z-]+\.trycloudflare\.com' /tmp/cloudflared-api.log | head -1
+
+    # Ver URL atual do frontend
+    grep -oE 'https://[a-z-]+\.trycloudflare\.com' /tmp/cloudflared-frontend.log | head -1
+
+    # Matar todos os túneis
+    pkill -f "cloudflared tunnel"
+
+    # Ver logs
+    tail -f /tmp/cloudflared-api.log
+    tail -f /tmp/cloudflared-frontend.log
+
+### Pré-requisito
+
+    cloudflared instalado em /usr/local/bin/cloudflared
+    (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
