@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-# Verifica Docker ANTES de qualquer coisa
 if ! docker info > /dev/null 2>&1; then
   echo "❌ Docker não está rodando. Suba primeiro:"
   echo "   sudo setsid nohup dockerd > /tmp/docker.log 2>&1 < /dev/null & disown; sleep 15"
@@ -29,9 +28,11 @@ done
 [ -z "$FRONT_URL" ] && { echo "❌ Frontend falhou"; tail -20 /tmp/cloudflared-frontend.log; exit 1; }
 
 cd /mnt/d/monitor_micro
-grep -q "^API_URL=" .env && sed -i "s|^API_URL=.*|API_URL=$API_URL|" .env || echo "API_URL=$API_URL" >> .env
-
-sudo docker compose up -d --force-recreate frontend 2>&1 | tail -2
+if grep -q "^API_URL=" .env; then
+  sed -i "s|^API_URL=.*|API_URL=$API_URL|" .env
+else
+  echo "API_URL=$API_URL" >> .env
+fi
 
 echo ""
 echo "  API:      $API_URL"
