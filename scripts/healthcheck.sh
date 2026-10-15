@@ -124,7 +124,27 @@ else
   bad "testes falharam: $T_RESULT"
 fi
 
+
+# --- 12. Túnel Cloudflare (opcional) ---
+section "12. Cloudflare Tunnel"
+if ps aux | grep -q "[c]loudflared tunnel"; then
+  API_URL=$(grep -oE 'https://[a-z-]+\.trycloudflare\.com' /tmp/cloudflared-api.log 2>/dev/null | head -1)
+  if [ -n "$API_URL" ]; then
+    HTTP=$(curl -sS -o /dev/null -w "%{http_code}" -m 5 "$API_URL/" 2>/dev/null)
+    if [ "$HTTP" = "200" ]; then
+      ok "API pública responde: $API_URL"
+    else
+      warn "Túnel ativo mas API pública retornou HTTP $HTTP"
+    fi
+  else
+    warn "cloudflared rodando mas URL não encontrada no log"
+  fi
+else
+  warn "cloudflared não está rodando (API pública offline)"
+fi
+
 # --- Resumo ---
+
 section "RESUMO"
 printf "  PASS=%d  WARN=%d  FAIL=%d\n" "$PASS" "$WARN" "$FAIL"
 if [ "$FAIL" -gt 0 ]; then
