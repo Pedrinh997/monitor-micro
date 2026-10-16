@@ -72,8 +72,6 @@ exports/
 *.bak.*
 
 # Backups locais
-*.bak
-*.bak.*
 *.save
 *.save.*
 .env.save*
@@ -82,7 +80,6 @@ exports/
 
 !.env.production.example
 
-# Backups locais
 backups/
 log.txt
 nohup.out
