@@ -5,6 +5,14 @@ Checklist sequencial. Rode cada bloco, confira o resultado, siga.
 **Custo estimado:** ~$6/mês VPS + ~$10/ano domínio.
 **Tempo:** 2-3h no total.
 
+## Por que VPS antes de ARIMA
+
+PC desligado -> scheduler não roda -> dados não acumulam -> ARIMA trava.
+Numa VPS 24/7 o scheduler acumula sozinho. Esta fase destrava o ARIMA.
+
+**Tamanho sugerido:** 1 vCPU / 1 GB RAM para começar. 2 GB se rodar
+Prometheus + Grafana junto.
+
 ---
 
 ## Fase 1 — Provisionar VPS (você faz)
@@ -46,7 +54,6 @@ Preencha as senhas. Gere se precisar:
     python3 -c "import secrets; print(secrets.token_hex(32))"
     # use para SECRET_KEY
 
-
 ## Fase 4 — Subir a stack
 
     cd /opt/monitor-micro
@@ -56,6 +63,10 @@ Confira:
 
     docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
     curl http://127.0.0.1:8000/
+
+Se as tabelas não existirem:
+
+    docker exec monitor_micro-api-1 python create_tables.py
 
 ## Fase 5 — Nginx + HTTPS
 
@@ -109,6 +120,13 @@ Ative:
 
     chmod +x /etc/cron.daily/backup-cryptopulse
 
+## Ajustes pós-deploy
+
+- Remover portas expostas de db, redis, minio, grafana, worker (o overlay
+  `docker-compose.prod.yml` já faz isso — confira com `docker compose config`)
+- Firewall restritivo: apenas 22, 80, 443 expostos
+- Confirmar que `.env` **não** foi commitado (`git status` limpo)
+
 ---
 
 ## Troubleshooting
@@ -120,13 +138,27 @@ Ative:
 **certbot falhou:** DNS ainda não propagou. Espere 30 min e tente de novo.
 
 **Ver logs:**
+
     docker logs monitor_micro-api-1 --tail 50
     docker logs monitor_micro-worker-1 --tail 50
     docker logs monitor_micro-frontend-1 --tail 50
 
 **Parar tudo:**
+
     docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 
 **Atualizar manualmente:**
+
     cd /opt/monitor-micro
     ./scripts/deploy_vps.sh
+
+---
+
+## Próximo passo: ARIMA
+
+Quando tiver >=20 amostras em `price_history`:
+
+1. `pip install statsmodels` e adicionar ao `requirements.txt`
+2. Trocar `_predict_baseline()` por `_predict_arima()` em `app/ml/forecast.py`
+3. Manter assinatura `predict_prices(product_id, days) -> dict`
+4. Endpoint e dashboard NÃO mudam
