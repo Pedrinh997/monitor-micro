@@ -1,1 +1,4 @@
-boto3\npandas\npyarrow\npsycopg2-binary
+boto3
+pandas
+pyarrow
+psycopg2-binary
