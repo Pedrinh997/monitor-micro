@@ -30,9 +30,15 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
-for i in $(seq 1 30); do
-  curl -sS -m 3 http://127.0.0.1:9090/api/v1/targets 2>/dev/null | grep -q '"health":"up"' && break
+for i in $(seq 1 45); do
+  R=$(curl -sS -m 3 http://127.0.0.1:9090/api/v1/targets 2>/dev/null)
+  if echo "$R" | grep -q 'scrapeUrl.*api:8000' && echo "$R" | grep -q '"health":"up"'; then
+    echo "Prometheus scrapeando a API"
+    break
+  fi
   sleep 2
 done
+
+sleep 5
 
 ./scripts/healthcheck.sh 2>&1 | sed -n '/RESUMO/,$p'
