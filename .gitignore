@@ -78,25 +78,14 @@ exports/
 *.save.*
 .env.save*
 
-# Lixo de shell
-=
-CACHED
-exporting
-naming
-reading
-resolve
-transferring
-unpacking
 
-# Lixo de shell (colchetes literais — precisam de escape)
-\[api\]
-\[api
-\[frontend\]
-\[frontend
-\[internal\]
-\[worker\]
 
 !.env.production.example
 
 # Backups locais
 backups/
+log.txt
+nohup.out
+ngrok.log
+ngrok-api.log
+docker-compose.yml.bak.*
