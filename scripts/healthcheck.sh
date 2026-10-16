@@ -18,7 +18,7 @@ section() { printf "\n=== %s ===\n" "$1"; }
 # --- 1. Containers ---
 section "1. Containers"
 EXPECTED="db redis api worker frontend minio prometheus grafana mailpit"
-RUNNING=$(sudo docker compose ps --status running --format '{{.Service}}' 2>/dev/null | sort)
+RUNNING=$(docker compose ps --status running --format '{{.Service}}' 2>/dev/null | sort)
 for svc in $EXPECTED; do
   if echo "$RUNNING" | grep -qx "$svc"; then ok "$svc running"; else bad "$svc NÃO está running"; fi
 done
@@ -33,25 +33,25 @@ if echo "$M" | grep -q "^# HELP"; then ok "/metrics expondo"; else bad "/metrics
 
 # --- 3. Postgres ---
 section "3. Postgres"
-if sudo docker exec monitor_micro-db-1 pg_isready -U postgres >/dev/null 2>&1; then
+if docker exec monitor_micro-db-1 pg_isready -U postgres >/dev/null 2>&1; then
   ok "pg_isready"
 else
   bad "pg_isready falhou"
 fi
-DB_NAME=$(sudo docker exec monitor_micro-db-1 sh -c 'echo $POSTGRES_DB' 2>/dev/null)
+DB_NAME=$(docker exec monitor_micro-db-1 sh -c 'echo $POSTGRES_DB' 2>/dev/null)
 DB_NAME=${DB_NAME:-postgres}
-TABLES=$(sudo docker exec monitor_micro-db-1 psql -U postgres -d "$DB_NAME" -tAc \
+TABLES=$(docker exec monitor_micro-db-1 psql -U postgres -d "$DB_NAME" -tAc \
   "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'" 2>/dev/null)
 if [ "${TABLES:-0}" -gt 0 ]; then ok "$TABLES tabelas em $DB_NAME.public"; else bad "nenhuma tabela em $DB_NAME.public"; fi
 
 # --- 4. Redis ---
 section "4. Redis"
-PONG=$(sudo docker exec monitor_micro-redis-1 redis-cli ping 2>/dev/null)
+PONG=$(docker exec monitor_micro-redis-1 redis-cli ping 2>/dev/null)
 if [ "$PONG" = "PONG" ]; then ok "redis-cli ping → PONG"; else bad "redis não respondeu: $PONG"; fi
 
 # --- 5. MinIO + bucket (via S3 API, não filesystem) ---
 section "5. MinIO / bucket price-history"
-N_OBJ=$(sudo docker exec monitor_micro-api-1 python3 -c "
+N_OBJ=$(docker exec monitor_micro-api-1 python3 -c "
 import os, boto3
 s3 = boto3.client('s3',
     endpoint_url=f\"http://{os.getenv('MINIO_ENDPOINT','minio:9000')}\" ,
@@ -68,7 +68,7 @@ if [ "${N_OBJ:-0}" -gt 0 ]; then ok "$N_OBJ parquets no bucket"; else warn "0 pa
 
 # --- 6. Worker / scheduler ---
 section "6. Worker / scheduler"
-WORKER_LOG=$(sudo docker logs monitor_micro-worker-1 --tail 50 2>&1 | grep -iE "scrape|task|job" | tail -1)
+WORKER_LOG=$(docker logs monitor_micro-worker-1 --tail 50 2>&1 | grep -iE "scrape|task|job" | tail -1)
 if [ -n "$WORKER_LOG" ]; then ok "worker logando: $WORKER_LOG"; else warn "worker sem log recente de task"; fi
 
 # --- 7. Prometheus ---
@@ -95,7 +95,7 @@ if [ "$MP" = "200" ]; then ok "Mailpit UI responde"; else warn "Mailpit retornou
 
 # --- 10. Analytics (cache + query real) ---
 section "10. Analytics"
-STATS=$(sudo docker exec monitor_micro-api-1 python3 -c "
+STATS=$(docker exec monitor_micro-api-1 python3 -c "
 from app.analytics.duckdb_analysis import get_price_stats
 import json
 print(json.dumps(get_price_stats()))
@@ -107,13 +107,13 @@ else
   bad "get_price_stats falhou: $STATS"
 fi
 
-CACHE_OK=$(sudo docker exec monitor_micro-api-1 sh -c \
+CACHE_OK=$(docker exec monitor_micro-api-1 sh -c \
   "test -f /tmp/duckdb_parquet_cache/.etags.json && echo yes || echo no")
 if [ "$CACHE_OK" = "yes" ]; then ok "cache populado (.etags.json presente)"; else warn "cache vazio"; fi
 
 # --- 11. Testes ---
 section "11. Suíte de testes"
-T_RESULT=$(sudo docker exec monitor_micro-api-1 \
+T_RESULT=$(docker exec monitor_micro-api-1 \
   pytest tests/test_smoke.py tests/test_integration.py -q 2>&1 | tail -1)
 # Exige pelo menos 1 passed E nenhum failed/error — senão
 # "10 passed, 4 errors" seria classificado como sucesso.
